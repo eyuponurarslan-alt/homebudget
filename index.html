@@ -634,8 +634,16 @@ function rP3(){
     const limit=netLim(k.id,limitAy); // Ana tablo limiti (referans için)
     const kg = k.kesim || 1; 
     const nextM = addM(m, 1);
-    const startStr = `${m}-${String(kg + 1).padStart(2, '0')}`; // Örn: 2026-03-07
-    const endStr = `${nextM}-${String(kg).padStart(2, '0')}`;   // Örn: 2026-04-06
+    const prevM = addM(m, -1);
+
+    let startStr, endStr;
+    if (kg > 20) {
+      startStr = `${prevM}-${String(kg + 1).padStart(2, '0')}`; 
+        endStr = `${m}-${String(kg).padStart(2, '0')}`;
+    } else {
+      startStr = `${m}-${String(kg + 1).padStart(2, '0')}`;
+        endStr = `${nextM}-${String(kg).padStart(2, '0')}`;
+    }
 
     const ayIslemler = (S.txns || []).filter(t => 
         t.tip === 'r' && t.kartId === k.id && t.tarih >= startStr && t.tarih <= endStr
