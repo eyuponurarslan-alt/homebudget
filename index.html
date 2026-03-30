@@ -632,14 +632,20 @@ function rP3(){
 
   (S.kartlar||[]).forEach(k=>{
     const limit=netLim(k.id,limitAy); // Ana tablo limiti (referans için)
-    const borc=kartBorcEkstreAy(k.id,m);
-    const kalan=limit-borc;
-    const pct=limit>0?Math.min(100,Math.round(borc/limit*100)):0;
-    const pbCol=pct>90?'var(--R)':pct>70?'var(--A)':'var(--G)';
+    const kg = k.kesim || 1; 
+    const nextM = addM(m, 1);
+    const startStr = `${m}-${String(kg + 1).padStart(2, '0')}`; // Örn: 2026-03-07
+    const endStr = `${nextM}-${String(kg).padStart(2, '0')}`;   // Örn: 2026-04-06
 
-    const ayIslemler=(S.txns||[]).filter(t=>t.tip==='r'&&t.kartId===k.id&&t.ekstreAy===m);
+    const ayIslemler = (S.txns || []).filter(t => 
+        t.tip === 'r' && t.kartId === k.id && t.tarih >= startStr && t.tarih <= endStr
+    );
     const ayTaksitler=(S.kartTaksit||[]).filter(kt=>kt.kartId===k.id&&kt.baslangicAy<=m&&addM(kt.baslangicAy,kt.taksitSayisi-1)>=m);
-
+    const borc = ayIslemler.reduce((s, t) => s + t.tutar, 0) + ayTaksitler.reduce((s, kt) => s + kt.aylikTutar, 0);
+    const kalan = limit - borc;
+    const pct = limit > 0 ? Math.min(100, Math.round(borc / limit * 100)) : 0;
+    const pbCol = pct > 90 ? 'var(--R)' : pct > 70 ? 'var(--A)' : 'var(--G)';
+    
     html+=`<div class="kp">
       <div class="kp-h">
         <div><div class="kp-ad">${k.ad}</div><div class="kp-info">Ekstre kesim: her ayın ${k.kesim}. günü</div></div>
