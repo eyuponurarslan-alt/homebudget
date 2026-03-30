@@ -408,18 +408,17 @@ function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 /* ── HESAPLAMA MOTORU (GÜVENLİ VE DÖNGÜSEL) ── */
 
 // 1. Düzenli Gider Toplamı (Statik veri okur)
+/* ── HESAPLAMA MOTORU BAŞLANGIÇ ── */
 function duzenliTop(m) {
   return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
 }
 
-// 2. Net Limit Hesaplama (Bağımsız veri okur)
 function netLim(id, m) {
-  const lim = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
-  const oran = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
-  return lim * (1 + oran / 100);
+  const l = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
+  const o = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
+  return l * (1 + o / 100);
 }
 
-// 3. Bir Ayın Gelir Toplamı (getDevir çağırmaz!)
 function atGelirTopla(m) {
   const dTop = duzenliTop(m);
   return (S.gelirKalemler || []).reduce((s, k) => {
@@ -428,86 +427,36 @@ function atGelirTopla(m) {
   }, 0);
 }
 
-// 4. Bir Ayın Gider Toplamı (getDevir çağırmaz!)
 function atGiderTopla(m) {
   const kartlar = (S.kartlar || []).reduce((s, k) => s + netLim(k.id, m), 0);
   const yat = (S.yatirimKalemler || []).reduce((s, k) => s + netLim(k.id, m), 0);
   return kartlar + yat;
 }
 
-/* ── HESAPLAMA MOTORU (GÜVENLİ VE DÖNGÜSEL) ── */
-
-// 1. Düzenli Gider Toplamı
-function duzenliTop(m) {
-  return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
-}
-
-// 2. Net Limit Hesaplama
-function netLim(id, m) {
-  const lim = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
-  const oran = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
-  return lim * (1 + (oran / 100));
-}
-
-// 3. Bir Ayın Gelir Toplamı
-function atGelirTopla(m) {
-  const dTop = duzenliTop(m);
-  return (S.gelirKalemler || []).reduce((s, k) => {
-    const nl = netLim(k.id, m);
-    return s + (k.id === 'g1' ? nl - dTop : nl);
-  }, 0);
-}
-
-// 4. Bir Ayın Gider Toplamı
-function atGiderTopla(m) {
-  const kartlar = (S.kartlar || []).reduce((s, k) => s + netLim(k.id, m), 0);
-  const yat = (S.yatirimKalemler || []).reduce((s, k) => s + netLim(k.id, m), 0);
-  return kartlar + yat;
-}
-
-// 5. DEVİR HESAPLAMA (GÜVENLİ DÖNGÜ)
 function getDevir(m) {
-    let currentMonth = m;
-    let totalAccumulated = 0;
-    let safetyCounter = 0;
+  let currentMonth = m;
+  let totalAccumulated = 0;
+  let safetyCounter = 0;
 
-    while (safetyCounter < 100) {
-        // Eğer kullanıcı manuel devir girmişse onu al ve birikmişe ekle
-        const stored = (S.devir || {})[currentMonth];
-        if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
-            return parseFloat(stored) + totalAccumulated;
-        }
-
-        const prevMonth = addM(currentMonth, -1);
-        
-        // Güvenlik: 2024 öncesine gitme veya döngü takılırsa kır
-        if (prevMonth === currentMonth || currentMonth < "2024-01") break;
-
-        // Bir önceki ayın farkını (gelir-gider) ekle
-        const g = atGelirTopla(prevMonth);
-        const gi = atGiderTopla(prevMonth);
-        totalAccumulated += (g - gi);
-
-        currentMonth = prevMonth;
-        safetyCounter++;
+  while (safetyCounter < 100) {
+    const stored = (S.devir || {})[currentMonth];
+    if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
+      return parseFloat(stored) + totalAccumulated;
     }
-    return totalAccumulated;
+
+    const prevMonth = addM(currentMonth, -1);
+    if (prevMonth === currentMonth || currentMonth < "2024-01") break;
+
+    const g = atGelirTopla(prevMonth);
+    const gi = atGiderTopla(prevMonth);
+    totalAccumulated += (g - gi);
+
+    currentMonth = prevMonth;
+    safetyCounter++;
+  }
+  return totalAccumulated;
 }
-
-/* ── EKSTRE MANTIK ── */
-  
-   Kesim günü: kartın ekstresinin kesildiği gün
-   Harcama tarihi ≤ kesim günü → bu ayın ekstresi → bir sonraki ay ödenir
-   Harcama tarihi > kesim günü → sonraki ayın ekstresi → iki ay sonra ödenir
-
-   Örnek Bonus (kesim:27):
-   - 1-27 Mart harcaması → 27 Mart'ta kesilir → Nisan'da ödenir (odemeAy=2026-04)
-   - 28-31 Mart harcaması → 27 Nisan'da kesilir → Mayıs'ta ödenir (odemeAy=2026-05)
-   
-   Örnek Maximum (kesim:6):
-   - 1-6 Mart harcaması → 6 Mart'ta kesilir → Nisan'da ödenir
-   - 7-31 Mart harcaması → 6 Nisan'da kesilir → Mayıs'ta ödenir
-*/
+/* ── HESAPLAMA MOTORU BİTİŞ ── */
 function hesaplaOdemeAy(tarihStr, kesimGun){
   const d=new Date(tarihStr);
   const gun=d.getDate();
