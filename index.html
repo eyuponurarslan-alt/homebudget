@@ -405,120 +405,134 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── HESAPLAMA VE RENDER MOTORU (PRO SÜRÜM) ── */
+/* ── MALİ DİSİPLİN HESAP MOTORU (V4) ── */
 
 const H = {
-    // 1. Temel Hesaplayıcılar
-    duzenliTop: (m) => (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0),
-    
-    netLim: (id, m) => {
-        const l = parseFloat(((S.atLimitler || {})[id] || {})[m]?.limit || 0);
-        const o = parseFloat(((S.atLimitler || {})[id] || {})[m]?.oran || 0);
-        return l * (1 + o / 100);
-    },
+  // Düzenli Gider Toplamı (Sayfa 2'den)
+  duzenli: (m) => {
+    return (S.duzenli || []).reduce((s, d) => s + (parseFloat((d.aylar || {})[m]) || 0), 0);
+  },
 
-    kartBorcOdemeAy: (kartId, odemeAy) => {
-        const txn = (S.txns || []).filter(t => t.tip === 'r' && t.kartId === kartId && t.odemeAy === odemeAy).reduce((s, t) => s + t.tutar, 0);
-        const tak = (S.kartTaksit || []).filter(kt => kt.kartId === kartId).reduce((s, kt) => {
-            const end = addM(kt.baslangicAy, kt.taksitSayisi - 1);
-            return odemeAy >= kt.baslangicAy && odemeAy <= end ? s + kt.aylikTutar : s;
-        }, 0);
-        return txn + tak;
-    },
+  // Saf Limit Hesaplama: Limit * (1 + Oran/100)
+  netHesap: (id, m) => {
+    const d = (S.atLimitler || {})[id]?.[m] || {};
+    const l = parseFloat(d.limit) || 0;
+    const o = parseFloat(d.oran) || 0;
+    return l * (1 + o / 100);
+  },
 
-    getDevir: (m) => {
-        let cur = m; let total = 0; let safety = 0;
-        const gTop = (mo) => (S.gelirKalemler || []).reduce((s, k) => s + (k.id === 'g1' ? H.netLim(k.id, mo) - H.duzenliTop(mo) : H.netLim(k.id, mo)), 0);
-        const giTop = (mo) => (S.kartlar || []).reduce((s, k) => s + H.netLim(k.id, mo), 0) + (S.yatirimKalemler || []).reduce((s, k) => s + H.netLim(k.id, mo), 0);
-        
-        while (safety < 100) {
-            const stored = (S.devir || {})[cur];
-            if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) return parseFloat(stored) + total;
-            const prev = addM(cur, -1);
-            if (prev === cur || cur < "2024-01") break;
-            total += (gTop(prev) - giTop(prev));
-            cur = prev; safety++;
-        }
-        return total;
+  // Devir Hesaplama (Önceki ayların bakiye farkı)
+  getDevir: (m) => {
+    let cur = m; let acc = 0; let safety = 0;
+    while (safety < 100) {
+      const manual = (S.devir || {})[cur];
+      if (manual !== undefined && manual !== null && manual !== '' && !isNaN(manual)) return parseFloat(manual) + acc;
+      const prev = addM(cur, -1);
+      if (prev === cur || cur < "2024-01") break;
+      
+      // Önceki ayın bakiyesi = Gelirler - (Kartlar + Yatırımlar)
+      const g = (S.gelirKalemler || []).reduce((s, k) => s + (k.id === 'g1' ? H.netHesap(k.id, prev) - H.duzenli(prev) : H.netHesap(k.id, prev)), 0);
+      const gi = [...(S.kartlar || []), ...(S.yatirimKalemler || [])].reduce((s, k) => s + H.netHesap(k.id, prev), 0);
+      
+      acc += (g - gi);
+      cur = prev; safety++;
     }
+    return acc;
+  }
 };
 
 /* ══════════════════════════════════════
-   SAYFA 1 — ANA TABLO
+   SAYFA 1 — ANA TABLO (GÜNCELLENDİ)
 ══════════════════════════════════════ */
 function rP1() {
-    const m = curM(); const dev = H.getDevir(m); const dTop = H.duzenliTop(m);
-    let h = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-    h += `<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Net</span></div>`;
-    
-    (S.gelirKalemler || []).forEach(k => {
-        const nl = H.netLim(k.id, m);
-        const net = k.id === 'g1' ? nl - dTop : nl;
-        h += `<div class="at-row g"><div class="at-grid">
-            <div class="at-cell"><b>${k.ad}</b>${k.id==='g1' && dTop > 0 ? `<br><small>Düzenli: -${fmt(dTop)}</small>` : ''}</div>
-            <div class="at-cell"><input class="ni" type="number" value="${S.atLimitler?.[k.id]?.[m]?.limit || ''}" onchange="setLim('${k.id}','${m}',this.value)"></div>
-            <div class="at-cell"><div class="av pos">${fmt(net)}</div></div>
-        </div></div>`;
-    });
+  const m = curM();
+  const devir = H.getDevir(m);
+  const dTop = H.duzenli(m);
 
-    const bakiye = (S.gelirKalemler || []).reduce((s,k) => s + (k.id==='g1' ? H.netLim(k.id, m) - dTop : H.netLim(k.id, m)), 0) + dev - (S.kartlar || []).reduce((s,k) => s + H.netLim(k.id, m), 0);
-    h += `<div class="ozet"><h3>Kalan Bakiye: ${fmt(bakiye)}</h3><small>Devir Dahil</small></div>`;
-    document.getElementById('p1').innerHTML = h;
+  let h = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
+  h += `<div class="at-hdr"><span>Kalem</span><span>Ana Tutar</span><span>Artış%</span><span>Nihai</span></div>`;
+
+  // Satır Çizme Fonksiyonu
+  const row = (k, tip) => {
+    const val = (S.atLimitler?.[k.id]?.[m] || {});
+    const nihai = H.netHesap(k.id, m);
+    const gosterge = (tip === 'g' && k.id === 'g1') ? nihai - dTop : nihai;
+
+    return `<div class="at-row ${tip}"><div class="at-grid">
+      <div class="at-cell"><b>${k.ad}</b>${tip==='g' && k.id==='g1' && dTop>0 ? `<br><small style="color:var(--R2)">Düz: -${fmt(dTop)}</small>`:''}</div>
+      <div class="at-cell"><input class="ni" type="number" step="any" value="${val.limit || ''}" placeholder="Tutar" onchange="setLim('${k.id}','${m}',this.value)"></div>
+      <div class="at-cell"><input class="ni" type="number" step="any" value="${val.oran || ''}" placeholder="%" onchange="setOr('${k.id}','${m}',this.value)"></div>
+      <div class="at-cell"><div class="av ${tip==='g'?'pos':'neg'}">${fmt(gosterge)}</div></div>
+    </div></div>`;
+  };
+
+  h += `<div class="sec-lbl">GELİRLER (Devir: ${fmt(devir)})</div>`;
+  (S.gelirKalemler || []).forEach(k => h += row(k, 'g'));
+
+  h += `<div class="sec-lbl">GİDER LİMİTLERİ (KARTLAR)</div>`;
+  (S.kartlar || []).forEach(k => h += row(k, 'r'));
+
+  h += `<div class="sec-lbl">YATIRIM HEDEFLERİ</div>`;
+  (S.yatirimKalemler || []).forEach(k => h += row(k, 'r'));
+
+  // Özet Hesaplama
+  const toplamGelir = (S.gelirKalemler || []).reduce((s, k) => s + (k.id === 'g1' ? H.netHesap(k.id, m) - dTop : H.netHesap(k.id, m)), 0) + devir;
+  const toplamGider = [...(S.kartlar || []), ...(S.yatirimKalemler || [])].reduce((s, k) => s + H.netHesap(k.id, m), 0);
+  const bakiye = toplamGelir - toplamGider;
+
+  h += `<div class="ozet">
+    <div class="oz-row"><span>Kullanılabilir Toplam:</span><b class="pos">${fmt(toplamGelir)}</b></div>
+    <div class="oz-row"><span>Planlanan Giderler:</span><b class="neg">${fmt(toplamGider)}</b></div>
+    <div class="oz-row" style="border-top:1px solid #555; margin-top:8px; padding-top:8px">
+      <span>SERBEST BAKİYE:</span><b style="font-size:1.3em; color:${bakiye>=0?'var(--G2)':'var(--R2)'}">${fmt(bakiye)}</b>
+    </div>
+  </div>`;
+  document.getElementById('p1').innerHTML = h;
 }
 
 /* ══════════════════════════════════════
-   SAYFA 2 — DÜZENLİ GİDERLER
+   SAYFA 2 — DÜZENLİ GİDERLER (SABİT)
 ══════════════════════════════════════ */
 function rP2() {
-    const m = curM(); const months = []; for(let i=-2; i<10; i++) months.push(addM(m, i));
-    let h = `<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
-    h += `<div class="dg-wrap" style="overflow-x:auto"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
-    months.forEach(mo => h += `<th>${mo.split('-')[1]} / ${mo.split('-')[0].slice(-2)}</th>`);
-    h += `</tr></thead><tbody>`;
-    
-    (S.duzenli || []).forEach((dg, i) => {
-        h += `<tr><td class="sticky">${dg.ad} <span onclick="delDG('${dg.id}')" style="color:red; cursor:pointer">×</span></td>`;
-        months.forEach(mo => {
-            const v = (dg.aylar || {})[mo] || '';
-            h += `<td><input type="number" class="dg-input" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={}; S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0; sv(); rP1();"></td>`;
-        });
-        h += `</tr>`;
+  const m = curM(); const mos = []; for(let i=-1; i<11; i++) mos.push(addM(m, i));
+  let h = `<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
+  h += `<div class="dg-wrap" style="overflow-x:auto"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
+  mos.forEach(mo => h += `<th>${mo.split('-')[1]}</th>`);
+  h += `</tr></thead><tbody>`;
+  (S.duzenli || []).forEach((dg, i) => {
+    h += `<tr><td class="sticky">${dg.ad} <span onclick="delDG('${dg.id}')" style="color:red; cursor:pointer">×</span></td>`;
+    mos.forEach(mo => {
+      const v = (dg.aylar || {})[mo] || '';
+      h += `<td><input type="number" class="dg-input" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={}; S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0; sv(); rP1();"></td>`;
     });
-    h += `</tbody></table></div>`;
-    document.getElementById('p2').innerHTML = h;
+    h += `</tr>`;
+  });
+  h += `</tbody></table></div>`;
+  document.getElementById('p2').innerHTML = h;
 }
 
 /* ══════════════════════════════════════
-   SAYFA 3 — KARTLAR
+   SAYFA 3 — KARTLAR (LİMİT YÖNETİMİ)
 ══════════════════════════════════════ */
 function rP3() {
-    const m = curM();
-    let h = `<div class="ph"><div class="pt">Kredi Kartları</div><button class="bs a" onclick="addKrt()">+ Kart Ekle</button></div>`;
-    
-    (S.kartlar || []).forEach(k => {
-        const borc = H.kartBorcOdemeAy(k.id, m);
-        const lim = H.netLim(k.id, m);
-        const kalan = lim - borc;
-        h += `<div class="at-row r" style="margin-bottom:15px; border-left:4px solid var(--R2)">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 10px">
-                <b>${k.ad}</b>
-                <button onclick="delKrt('${k.id}')" style="background:none; border:none; color:var(--t3)">🗑️</button>
-            </div>
-            <div class="at-grid">
-                <div class="at-cell"><small>Limit Tanımla</small><input class="ni" type="number" value="${S.atLimitler?.[k.id]?.[m]?.limit || ''}" onchange="setLim('${k.id}','${m}',this.value)"></div>
-                <div class="at-cell"><small>Aylık Borç</small><div class="av neg">${fmt(borc)}</div></div>
-                <div class="at-cell"><small>Kalan Limit</small><div class="av ${kalan>=0?'pos':'neg'}">${fmt(kalan)}</div></div>
-            </div>
-        </div>`;
-    });
-    document.getElementById('p3').innerHTML = h;
+  const m = curM();
+  let h = `<div class="ph"><div class="pt">Kart Listesi</div><button class="bs a" onclick="addKrt()">+ Kart Ekle</button></div>`;
+  (S.kartlar || []).forEach(k => {
+    h += `<div class="at-row r" style="margin-bottom:8px">
+      <div style="display:flex; justify-content:space-between; padding:10px">
+        <b>${k.ad}</b>
+        <span onclick="delKrt('${k.id}')" style="cursor:pointer">🗑️</span>
+      </div>
+    </div>`;
+  });
+  document.getElementById('p3').innerHTML = h;
 }
 
-// YARDIMCI FONKSİYONLAR
-function addDG(){ const ad=prompt('Gider Kalemi (Örn: Netflix):'); if(ad){ if(!S.duzenli)S.duzenli=[]; S.duzenli.push({id:'dg'+Date.now(), ad, aylar:{}}); sv(); rP2(); } }
-function delDG(id){ if(confirm('Silinsin mi?')){ S.duzenli=S.duzenli.filter(d=>d.id!==id); sv(); rP2(); rP1(); } }
-function addKrt(){ const ad=prompt('Kart Adı:'); if(ad){ if(!S.kartlar)S.kartlar=[]; S.kartlar.push({id:'k'+Date.now(), ad, kesim:1}); sv(); rP3(); } }
-function delKrt(id){ if(confirm('Kartı silerseniz tüm limit verileri gider. Emin misiniz?')){ S.kartlar=S.kartlar.filter(k=>k.id!==id); sv(); rP3(); rP1(); } }
+// Global Tanımlar
+function addDG(){ const a=prompt('Gider:'); if(a){ if(!S.duzenli)S.duzenli=[]; S.duzenli.push({id:'dg'+Date.now(),ad:a,aylar:{}}); sv(); rP2(); } }
+function delDG(id){ if(confirm('Sil?')){ S.duzenli=S.duzenli.filter(d=>d.id!==id); sv(); rP1(); rP2(); } }
+function addKrt(){ const a=prompt('Kart:'); if(a){ if(!S.kartlar)S.kartlar=[]; S.kartlar.push({id:'k'+Date.now(),ad:a}); sv(); rP3(); rP1(); } }
+function delKrt(id){ if(confirm('Sil?')){ S.kartlar=S.kartlar.filter(k=>k.id!==id); sv(); rP3(); rP1(); } }
   
 /* ══════════════════════════════════════
    SAYFA 4 — İŞLEMLER
