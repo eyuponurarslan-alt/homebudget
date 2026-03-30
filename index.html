@@ -406,7 +406,7 @@ function setOr(id,m,v){
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
 /* ══════════════════════════════════════════════════════════════
-   HESAPLAMA MOTORU VE SAYFA RENDERLARI (V8)
+   HESAPLAMA MOTORU VE SAYFA RENDERLARI (V9 - NAV FIX)
    ══════════════════════════════════════════════════════════════ */
 
 const H = {
@@ -521,7 +521,7 @@ function rP5() {
 }
 
 /* ══════════════════════════════════════
-   QUICK MODAL (SENİN ÖZEL MENÜN)
+   QUICK MODAL (3 Tip: Kart / Taksit / Gelir)
 ══════════════════════════════════════ */
 let qTip='r';
 function openQ(){
@@ -560,4 +560,76 @@ function updEN(){
   const kid=document.getElementById('qk').value;
   const en=document.getElementById('en');
   if(!tarih){en.style.display='none';return;}
-  const kart=(S.kart
+  const kart=(S.kartlar||[]).find(k=>k.id===kid);
+  if(!kart){en.style.display='none';return;}
+  const note=ekstreNotTxt(tarih,kart);
+  if(note){en.textContent='📅 '+note;en.style.display='block';}
+  else{en.style.display='none';}
+}
+
+function saveQ(){
+  const msg=document.getElementById('qmsg');
+  msg.textContent='';
+  if(qTip==='r'){
+    const tarih=document.getElementById('qd').value;
+    const tutar=parseFloat(document.getElementById('qt').value||0);
+    const kartId=document.getElementById('qk').value;
+    const kat=document.getElementById('qc').value;
+    const not=document.getElementById('qn').value;
+    if(!tarih||!tutar){msg.textContent='Tarih ve tutar gerekli.';return;}
+    const kart=(S.kartlar||[]).find(k=>k.id===kartId);
+    const odemeAy=kart?hesaplaOdemeAy(tarih,kart.kesim):null;
+    if(!S.txns)S.txns=[];
+    S.txns.push({id:Date.now(),tarih,tip:'r',kartId,odemeAy,kat,not,tutar});
+  } else if(qTip==='t'){
+    const kartId=document.getElementById('qtk').value;
+    const ad=document.getElementById('qtad').value;
+    const aylikTutar=parseFloat(document.getElementById('qtamt').value||0);
+    const taksitSayisi=parseInt(document.getElementById('qtsay').value||1);
+    const kat=document.getElementById('qtcat').value;
+    const baslangicAy=document.getElementById('qtbas').value;
+    if(!ad||!aylikTutar||!baslangicAy){msg.textContent='Lütfen tüm alanları doldurun.';return;}
+    if(!S.kartTaksit)S.kartTaksit=[];
+    S.kartTaksit.push({id:'kt'+Date.now(),kartId,ad,kat,aylikTutar,taksitSayisi,baslangicAy});
+  } else {
+    const tarih=document.getElementById('qgd').value;
+    const tutar=parseFloat(document.getElementById('qgt').value||0);
+    const kartId=document.getElementById('qgk').value;
+    const not=document.getElementById('qgn').value;
+    if(!tarih||!tutar){msg.textContent='Tarih ve tutar gerekli.';return;}
+    if(!S.txns)S.txns=[];
+    S.txns.push({id:Date.now(),tarih,tip:'g',kartId,odemeAy:null,kat:'Gelir',not,tutar});
+  }
+  sv(); rAll();
+  document.getElementById('qm').classList.remove('open');
+}
+
+/* ── NAV ── */
+function gT(n,el){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tb').forEach(t=>t.classList.remove('on'));
+  document.getElementById('p'+n).classList.add('on');
+  if(el) el.classList.add('on');
+  document.getElementById('scr').scrollTop=0;
+  [rP1,rP2,rP3,rP4,rP5][n-1]();
+}
+
+window.rAll=function(){
+  rP1();
+  const a=document.querySelector('.pg.on')?.id;
+  if(a==='p2')rP2(); else if(a==='p3')rP3(); else if(a==='p4')rP4(); else if(a==='p5')rP5();
+};
+
+function delTxn(id) { if(confirm("Sil?")) { S.txns = S.txns.filter(t => (t.id||t.tarih) != id); sv(); rAll(); } }
+function addDG(){const a=prompt('Ad:');if(a){if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad:a,aylar:{}});sv();rP2();}}
+function delDG(id){if(confirm('Sil?')){S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rAll();}}
+function addKrt(){const a=prompt('Ad:');if(a){if(!S.kartlar)S.kartlar=[];S.kartlar.push({id:'k'+Date.now(),ad:a,kesim:1});sv();rAll();}}
+function delKrt(id){if(confirm('Sil?')){S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rAll();}}
+
+// Sayfa ilk yüklendiğinde çalıştır
+document.addEventListener("DOMContentLoaded", function() {
+    rAll();
+});
+</script>
+</body>
+</html>
