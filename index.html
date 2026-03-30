@@ -638,10 +638,14 @@ function rP3(){
 
     let startStr, endStr;
     if (kg > 20) {
-      startStr = `${prevM}-${String(kg + 1).padStart(2, '0')}`; 
+      // Bonus (27) gibi ay sonu kesilenler: 
+        // Mart sayfası Mart'ın 1'inden başlasın, 27'sinde bitsin.
+        startStr = `${m}-01`; 
         endStr = `${m}-${String(kg).padStart(2, '0')}`;
     } else {
-      startStr = `${m}-${String(kg + 1).padStart(2, '0')}`;
+        // World/Maximum (6) gibi ay başı kesilenler:
+        // Mart sayfası Mart'ın 7'sinden başlasın, Nisan'ın 6'sında bitsin.
+        startStr = `${m}-${String(kg + 1).padStart(2, '0')}`;
         endStr = `${nextM}-${String(kg).padStart(2, '0')}`;
     }
 
