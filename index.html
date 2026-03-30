@@ -428,15 +428,30 @@ function atGiderTopla(m){
   return kartlar+yat;
 }
 // Devir: ya manuel girilen ya da önceki ayın net'i
-function getDevir(m){
-  const stored=(S.devir||{})[m];
-  if(stored!==undefined&&stored!==null&&stored!=='')return parseFloat(stored);
-  // Önceki ayın net'inden hesapla
-  const prev=addM(m,-1);
-  const g=atGelirTopla(prev);
-  const gi=atGiderTopla(prev);
-  const pd=getDevir(prev);
-  return g-gi+pd;
+function getDevir(m) {
+  // 1. Durma Koşulu: Eğer m değeri geçersizse veya çok eski bir tarihe ulaştıysak dur.
+  // Örn: Uygulamanın başlangıç tarihi "2024-01" ise ondan öncesini hesaplama.
+  if (!m || m < "2024-01") { 
+    return 0; 
+  }
+
+  const stored = (S.devir || {})[m];
+  if (stored !== undefined && stored !== null && stored !== '') {
+    return parseFloat(stored);
+  }
+
+  // 2. Önceki aya gitmeden önce bir güvenlik sınırı (opsiyonel ama önerilir)
+  // Eğer döngü çok uzarsa (örneğin 24 aydan fazla) işlemi kes.
+  
+  const prev = addM(m, -1);
+  
+  // Hata payını azaltmak için verilerin varlığını kontrol et
+  const g = typeof atGelirTopla === 'function' ? atGelirTopla(prev) : 0;
+  const gi = typeof atGiderTopla === 'function' ? atGiderTopla(prev) : 0;
+  
+  const pd = getDevir(prev); 
+  
+  return g - gi + pd;
 }
 
 /* ── EKSTRE MANTIK ──
