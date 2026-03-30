@@ -405,78 +405,69 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── DÜZENLİ GİDER TOPLAMI ── */
-function duzenliTop(m){
-  return(S.duzenli||[]).reduce((s,d)=>s+parseFloat((d.aylar||{})[m]||0),0);
+/* ── HESAPLAMA MOTORU (GÜVENLİ VE DÖNGÜSEL) ── */
+
+// 1. Düzenli Gider Toplamı (Statik veri okur)
+function duzenliTop(m) {
+  return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
 }
 
-/* ── ANA TABLO GELİR/GİDER (SADECE LİMİTLERDEN) ──
-   Ana Tablo hiçbir gerçek işlemden etkilenmez.
-   Sadece: limit * (1 + oran/100)
-   Ana Gelir'den düzenli gider toplamı düşülür (bu da bir limit, işlem değil)
-*/
-function atGelirTopla(m){
-  return(S.gelirKalemler||[]).reduce((s,k)=>{
-    const nl=netLim(k.id,m);
-    return s+(k.id==='g1'?nl-duzenliTop(m):nl);
-  },0);
+// 2. Net Limit Hesaplama (Bağımsız veri okur)
+function netLim(id, m) {
+  const lim = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
+  const oran = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
+  return lim * (1 + oran / 100);
 }
-function atGiderTopla(m){
-  // Kart limitleri + yatırım limitleri toplamı
-  const kartlar=(S.kartlar||[]).reduce((s,k)=>s+netLim(k.id,m),0);
-  const yat=(S.yatirimKalemler||[]).reduce((s,k)=>s+netLim(k.id,m),0);
-  return kartlar+yat;
+
+// 3. Bir Ayın Gelir Toplamı (getDevir çağırmaz!)
+function atGelirTopla(m) {
+  const dTop = duzenliTop(m);
+  return (S.gelirKalemler || []).reduce((s, k) => {
+    const nl = netLim(k.id, m);
+    return s + (k.id === 'g1' ? nl - dTop : nl);
+  }, 0);
 }
-// Devir: ya manuel girilen ya da önceki ayın net'i
+
+// 4. Bir Ayın Gider Toplamı (getDevir çağırmaz!)
+function atGiderTopla(m) {
+  const kartlar = (S.kartlar || []).reduce((s, k) => s + netLim(k.id, m), 0);
+  const yat = (S.yatirimKalemler || []).reduce((s, k) => s + netLim(k.id, m), 0);
+  return kartlar + yat;
+}
+
+// 5. DEVİR HESAPLAMA (ANA MOTOR - ASLA ÇÖKMEZ)
 function getDevir(m) {
-    let currentMonth = m;
-    let totalAccumulated = 0;
-    let safetyCounter = 0; // Sonsuz döngü koruması
+  let currentMonth = m;
+  let totalAccumulated = 0;
+  let safetyCounter = 0;
 
-    while (safetyCounter < 100) { // En fazla 100 ay geriye git (yeterli olacaktır)
-        // 1. Mevcut ayda el ile girilmiş bir devir var mı?
-        const stored = (S.devir || {})[currentMonth];
-        if (stored !== undefined && stored !== null && stored !== '') {
-            return parseFloat(stored) + totalAccumulated;
-        }
-
-        // 2. Bir önceki aya geç
-        const prevMonth = addM(currentMonth, -1);
-        
-        // GÜVENLİK KONTROLÜ: Eğer addM fonksiyonu ayı geri götüremiyorsa döngüyü kır
-        if (prevMonth === currentMonth) break; 
-        
-        currentMonth = prevMonth;
-
-        // 3. Bu ayın gelir ve giderini ekle
-        const g = typeof atGelirTopla === 'function' ? atGelirTopla(currentMonth) : 0;
-        const gi = typeof atGiderTopla === 'function' ? atGiderTopla(currentMonth) : 0;
-        
-        totalAccumulated += (g - gi);
-
-        // 4. Çok eskiye (başlangıca) gidip gitmediğimizi kontrol et
-        if (currentMonth < "2024-01") break; 
-
-        safetyCounter++;
+  // En fazla 120 ay (10 yıl) geriye gider, hafızayı şişirmez
+  while (safetyCounter < 120) {
+    // Eğer kullanıcı bu ay için elle devir girmişse, döngü burada durur (en sağlıklı veri)
+    const stored = (S.devir || {})[currentMonth];
+    if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
+      return parseFloat(stored) + totalAccumulated;
     }
 
-    return totalAccumulated;
-}
+    // Bir önceki aya git
+    const prevMonth = addM(currentMonth, -1);
+    
+    // Eğer tarih geriye gitmiyorsa veya çok eskiyse (2024 altı) dur
+    if (prevMonth === currentMonth || currentMonth < "2024-01") {
+      break;
+    }
 
-  // 2. Önceki aya gitmeden önce bir güvenlik sınırı (opsiyonel ama önerilir)
-  // Eğer döngü çok uzarsa (örneğin 24 aydan fazla) işlemi kes.
-  
-  const prev = addM(m, -1);
-  
-  // Hata payını azaltmak için verilerin varlığını kontrol et
-  const g = typeof atGelirTopla === 'function' ? atGelirTopla(prev) : 0;
-  const gi = typeof atGiderTopla === 'function' ? atGiderTopla(prev) : 0;
-  
-  const pd = getDevir(prev); 
-  
-  return g - gi + pd;
-}
+    // Bir önceki ayın kar/zararını ekle (atGelirTopla ve atGiderTopla artık bağımsızdır)
+    const g = atGelirTopla(prevMonth);
+    const gi = atGiderTopla(prevMonth);
+    totalAccumulated += (g - gi);
 
+    currentMonth = prevMonth;
+    safetyCounter++;
+  }
+
+  return totalAccumulated;
+}
 /* ── EKSTRE MANTIK ──
    Kesim günü: kartın ekstresinin kesildiği gün
    Harcama tarihi ≤ kesim günü → bu ayın ekstresi → bir sonraki ay ödenir
