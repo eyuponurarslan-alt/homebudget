@@ -405,9 +405,9 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── HESAPLAMA MOTORU (GÜVENLİ VE DÖNGÜSEL) ── */
+/* ── HESAPLAMA MOTORU (GÜVENLİ VE SIRALI) ── */
 
-// A. Yardımcı Hesaplayıcılar (Diğerleri bunları kullanır)
+// 1. Temel Hesaplayıcılar
 function duzenliTop(m) {
   return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
 }
@@ -418,6 +418,7 @@ function netLim(id, m) {
   return l * (1 + o / 100);
 }
 
+// 2. Grup Hesaplayıcılar (atGelirTopla ve atGiderTopla)
 function atGelirTopla(m) {
   const dTop = duzenliTop(m);
   return (S.gelirKalemler || []).reduce((s, k) => {
@@ -432,7 +433,7 @@ function atGiderTopla(m) {
   return kartlar + yat;
 }
 
-// B. Ana Devir Fonksiyonu
+// 3. Devir Hesaplama (Döngüsel)
 function getDevir(m) {
   let currentMonth = m;
   let totalAccumulated = 0;
@@ -443,14 +444,12 @@ function getDevir(m) {
     if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
       return parseFloat(stored) + totalAccumulated;
     }
-
     const prevMonth = addM(currentMonth, -1);
     if (prevMonth === currentMonth || currentMonth < "2024-01") break;
 
     const g = atGelirTopla(prevMonth);
     const gi = atGiderTopla(prevMonth);
     totalAccumulated += (g - gi);
-
     currentMonth = prevMonth;
     safetyCounter++;
   }
@@ -460,91 +459,81 @@ function getDevir(m) {
 /* ══════════════════════════════════════
    SAYFA 1 — ANA TABLO
 ══════════════════════════════════════ */
-function rP1(){
-  const m=curM();
-  const devir=getDevir(m);
-  const dTop=duzenliTop(m);
+function rP1() {
+  const m = curM();
+  const devir = getDevir(m);
+  const dTop = duzenliTop(m);
 
-  let html=`<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-  html+=`<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div>`;
+  let html = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
+  html += `<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div>`;
 
   /* GELİRLER */
-  html+=`<div class="sec-lbl">Gelirler</div>`;
-  (S.gelirKalemler||[]).forEach(k=>{
-    const l=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).limit||0);
-    const o=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).oran||0);
-    const nl=l*(1+o/100);
-    const net=k.id==='g1'?nl-dTop:nl;
-    html+=`<div class="at-row g"><div class="at-grid">
-      <div class="at-cell"><div class="at-ad">${k.ad}</div>${k.id==='g1'&&dTop>0?`<div class="at-sub">Düzenli: −${fmt(dTop)}</div>`:''}</div>
-      <div class="at-cell"><input class="ni" type="number" value="${l||''}" placeholder="0" onchange="setLim('${k.id}','${m}',this.value)"></div>
-      <div class="at-cell"><input class="ni" type="number" value="${o||''}" placeholder="0" onchange="setOr('${k.id}','${m}',this.value)"></div>
-      <div class="at-cell"><div class="av ${net>=0?'pos':'neg'}">${fmt(net)}</div></div>
+  html += `<div class="sec-lbl">Gelirler</div>`;
+  (S.gelirKalemler || []).forEach(k => {
+    const l = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).limit || 0);
+    const o = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).oran || 0);
+    const nl = l * (1 + o / 100);
+    const net = k.id === 'g1' ? nl - dTop : nl;
+    html += `<div class="at-row g"><div class="at-grid">
+      <div class="at-cell"><div class="at-ad">${k.ad}</div>${k.id === 'g1' && dTop > 0 ? `<div class="at-sub">Düzenli: −${fmt(dTop)}</div>` : ''}</div>
+      <div class="at-cell"><input class="ni" type="number" value="${l || ''}" placeholder="0" onchange="setLim('${k.id}','${m}',this.value)"></div>
+      <div class="at-cell"><input class="ni" type="number" value="${o || ''}" placeholder="0" onchange="setOr('${k.id}','${m}',this.value)"></div>
+      <div class="at-cell"><div class="av ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div></div>
     </div></div>`;
   });
 
-  /* DEVİR */
-  html+=`<div class="at-row p"><div class="at-grid">
-    <div class="at-cell"><div class="at-ad" style="color:var(--P)">Devirli Bakiye</div><div class="at-sub">Boş bırak → önceki ay net'i</div></div>
+  /* DEVİR VE ÖZET */
+  const tG = atGelirTopla(m) + devir;
+  const tGi = atGiderTopla(m);
+  const kalan = tG - tGi;
+
+  html += `<div class="at-row p"><div class="at-grid">
+    <div class="at-cell"><div class="at-ad" style="color:var(--P)">Devirli Bakiye</div></div>
     <div class="at-cell" style="grid-column:span 2">
-      <input class="ni" type="number" value="${(S.devir||{})[m]!==undefined?(S.devir||{})[m]:''}" placeholder="Otomatik"
+      <input class="ni" type="number" value="${(S.devir || {})[m] !== undefined ? (S.devir || {})[m] : ''}" placeholder="Otomatik"
         onchange="if(!S.devir)S.devir={};S.devir['${m}']=this.value===''?undefined:parseFloat(this.value);sv();rP1()">
     </div>
     <div class="at-cell"><div class="av pur">${fmt(devir)}</div></div>
   </div></div>`;
 
-  /* KART LİMİTLERİ */
-  html+=`<div class="sec-lbl">Kart Limitleri</div>`;
-  (S.kartlar||[]).forEach(k=>{
-    const l=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).limit||0);
-    const o=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).oran||0);
-    const nl=l*(1+o/100);
-    html+=`<div class="at-row r"><div class="at-grid">
-      <div class="at-cell"><div class="at-ad">${k.ad}</div><div class="at-sub">Kesim: ${k.kesim}. gün</div></div>
-      <div class="at-cell"><input class="ni" type="number" value="${l||''}" placeholder="0" onchange="setLim('${k.id}','${m}',this.value)"></div>
-      <div class="at-cell"><input class="ni" type="number" value="${o||''}" placeholder="0" onchange="setOr('${k.id}','${m}',this.value)"></div>
-      <div class="at-cell"><div class="av neg">${fmt(nl)}</div></div>
-    </div></div>`;
-  });
-
-  /* ÖZET */
-  const tG=atGelirTopla(m)+devir;
-  const tGi=atGiderTopla(m);
-  const kalan=tG-tGi;
-  html+=`<div class="ozet">
-    <div class="oz-row"><span class="oz-lbl">Toplam Gelir + Devir</span><span class="oz-val pos">${fmt(tG)}</span></div>
-    <div class="oz-row"><span class="oz-lbl">Toplam Gider (limit)</span><span class="oz-val neg">${fmt(tGi)}</span></div>
-    <div class="oz-row"><span class="oz-lbl" style="font-weight:700">Kalan (limite göre)</span><span class="oz-val" style="color:${kalan>=0?'var(--G2)':'var(--R2)'}">${fmt(kalan)}</span></div>
+  html += `<div class="ozet">
+    <div class="oz-row"><span class="oz-lbl">Net Gelir + Devir</span><span class="oz-val pos">${fmt(tG)}</span></div>
+    <div class="oz-row"><span class="oz-lbl">Toplam Gider (Limit)</span><span class="oz-val neg">${fmt(tGi)}</span></div>
+    <div class="oz-row"><span class="oz-lbl" style="font-weight:700">Kalan</span><span class="oz-val" style="color:${kalan >= 0 ? 'var(--G2)' : 'var(--R2)'}">${fmt(kalan)}</span></div>
   </div>`;
 
-  document.getElementById('p1').innerHTML=html;
+  document.getElementById('p1').innerHTML = html;
 }
 
 /* ══════════════════════════════════════
    SAYFA 2 — DÜZENLİ GİDERLER
 ══════════════════════════════════════ */
-function rP2(){
-  const m=curM();
-  const months=[]; for(let i=-1;i<11;i++) months.push(addM(m,i));
-  const top=duzenliTop(m);
-  let html=`<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
-  if(!(S.duzenli||[]).length){
-    html+=`<div class="empty">Henüz düzenli gider yok.</div>`;
-    document.getElementById('p2').innerHTML=html; return;
+function rP2() {
+  const m = curM();
+  const months = []; for (let i = -1; i < 11; i++) months.push(addM(m, i));
+  const top = duzenliTop(m);
+
+  let html = `<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
+  html += `<div class="dg-sum">Bu Ay Toplam: <strong>${fmt(top)}</strong></div>`;
+
+  if (!(S.duzenli || []).length) {
+    html += `<div class="empty">Henüz düzenli gider yok.</div>`;
+    document.getElementById('p2').innerHTML = html; return;
   }
-  html+=`<div class="dg-wrap"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
-  months.forEach(mo=>{ html+=`<th>${MN[parseInt(mo.split('-')[1])-1]}</th>`; });
-  html+=`</tr></thead><tbody>`;
-  (S.duzenli||[]).forEach((dg,i)=>{
-    html+=`<tr><td class="sticky">${dg.ad} <button onclick="delDG('${dg.id}')">×</button></td>`;
-    months.forEach(mo=>{
-      const v=(dg.aylar||{})[mo]||'';
-      html+=`<td><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
+
+  html += `<div class="dg-wrap"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
+  months.forEach(mo => { html += `<th>${MN[parseInt(mo.split('-')[1]) - 1]}</th>`; });
+  html += `</tr></thead><tbody>`;
+  (S.duzenli || []).forEach((dg, i) => {
+    html += `<tr><td class="sticky">${dg.ad} <button onclick="delDG('${dg.id}')">×</button></td>`;
+    months.forEach(mo => {
+      const v = (dg.aylar || {})[mo] || '';
+      html += `<td><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
     });
-    html+=`</tr>`;
+    html += `</tr>`;
   });
-  html+=`</tbody></table></div>`;
-  document.getElementById('p2').innerHTML=html;
+  html += `</tbody></table></div>`;
+  document.getElementById('p2').innerHTML = html;
 }
 
 function addDG(){const ad=prompt('Kalem adı:');if(!ad)return;if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad,aylar:{}});sv();rP2();}
