@@ -429,16 +429,39 @@ function atGiderTopla(m){
 }
 // Devir: ya manuel girilen ya da önceki ayın net'i
 function getDevir(m) {
-  // 1. Durma Koşulu: Eğer m değeri geçersizse veya çok eski bir tarihe ulaştıysak dur.
-  // Örn: Uygulamanın başlangıç tarihi "2024-01" ise ondan öncesini hesaplama.
-  if (!m || m < "2024-01") { 
-    return 0; 
-  }
+    let currentMonth = m;
+    let totalAccumulated = 0;
+    let safetyCounter = 0; // Sonsuz döngü koruması
 
-  const stored = (S.devir || {})[m];
-  if (stored !== undefined && stored !== null && stored !== '') {
-    return parseFloat(stored);
-  }
+    while (safetyCounter < 100) { // En fazla 100 ay geriye git (yeterli olacaktır)
+        // 1. Mevcut ayda el ile girilmiş bir devir var mı?
+        const stored = (S.devir || {})[currentMonth];
+        if (stored !== undefined && stored !== null && stored !== '') {
+            return parseFloat(stored) + totalAccumulated;
+        }
+
+        // 2. Bir önceki aya geç
+        const prevMonth = addM(currentMonth, -1);
+        
+        // GÜVENLİK KONTROLÜ: Eğer addM fonksiyonu ayı geri götüremiyorsa döngüyü kır
+        if (prevMonth === currentMonth) break; 
+        
+        currentMonth = prevMonth;
+
+        // 3. Bu ayın gelir ve giderini ekle
+        const g = typeof atGelirTopla === 'function' ? atGelirTopla(currentMonth) : 0;
+        const gi = typeof atGiderTopla === 'function' ? atGiderTopla(currentMonth) : 0;
+        
+        totalAccumulated += (g - gi);
+
+        // 4. Çok eskiye (başlangıca) gidip gitmediğimizi kontrol et
+        if (currentMonth < "2024-01") break; 
+
+        safetyCounter++;
+    }
+
+    return totalAccumulated;
+}
 
   // 2. Önceki aya gitmeden önce bir güvenlik sınırı (opsiyonel ama önerilir)
   // Eğer döngü çok uzarsa (örneğin 24 aydan fazla) işlemi kes.
