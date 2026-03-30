@@ -405,124 +405,105 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── HESAPLAMA MOTORU (TAM SÜRÜM - GÜVENLİ) ── */
+/* ── HESAPLAMA MOTORU (GLOBAL ENJEKSİYON) ── */
 
-function duzenliTop(m) {
-  try {
-    return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
-  } catch(e) { return 0; }
-}
+window.duzenliTop = function(m) {
+  return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
+};
 
-function netLim(id, m) {
-  try {
-    const l = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
-    const o = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
-    return l * (1 + o / 100);
-  } catch(e) { return 0; }
-}
+window.netLim = function(id, m) {
+  const l = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
+  const o = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
+  return l * (1 + o / 100);
+};
 
-function atGelirTopla(m) {
-  const dTop = duzenliTop(m);
+window.atGelirTopla = function(m) {
+  const dTop = window.duzenliTop(m);
   return (S.gelirKalemler || []).reduce((s, k) => {
-    const nl = netLim(k.id, m);
+    const nl = window.netLim(k.id, m);
     return s + (k.id === 'g1' ? nl - dTop : nl);
   }, 0);
-}
+};
 
-function atGiderTopla(m) {
-  const kartlar = (S.kartlar || []).reduce((s, k) => s + netLim(k.id, m), 0);
-  const yat = (S.yatirimKalemler || []).reduce((s, k) => s + netLim(k.id, m), 0);
+window.atGiderTopla = function(m) {
+  const kartlar = (S.kartlar || []).reduce((s, k) => s + window.netLim(k.id, m), 0);
+  const yat = (S.yatirimKalemler || []).reduce((s, k) => s + window.netLim(k.id, m), 0);
   return kartlar + yat;
-}
+};
 
-function getDevir(m) {
+window.getDevir = function(m) {
   let cur = m; let total = 0; let safety = 0;
   while (safety < 100) {
     const stored = (S.devir || {})[cur];
     if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) return parseFloat(stored) + total;
     const prev = addM(cur, -1);
     if (prev === cur || cur < "2024-01") break;
-    total += (atGelirTopla(prev) - atGiderTopla(prev));
+    total += (window.atGelirTopla(prev) - window.atGiderTopla(prev));
     cur = prev; safety++;
   }
   return total;
-}
+};
 
-function kartBorcOdemeAy(kartId, odemeAy) {
+window.kartBorcOdemeAy = function(kartId, odemeAy) {
   const txn = (S.txns || []).filter(t => t.tip === 'r' && t.kartId === kartId && t.odemeAy === odemeAy).reduce((s, t) => s + t.tutar, 0);
   const tak = (S.kartTaksit || []).filter(kt => kt.kartId === kartId).reduce((s, kt) => {
     const end = addM(kt.baslangicAy, kt.taksitSayisi - 1);
     return odemeAy >= kt.baslangicAy && odemeAy <= end ? s + kt.aylikTutar : s;
   }, 0);
   return txn + tak;
-}
+};
 
 /* ══════════════════════════════════════
-   SAYFA 1 — ANA TABLO
+   SAYFA 1, 2, 3 RENDERER
 ══════════════════════════════════════ */
-function rP1() {
-  const m = curM(); const devir = getDevir(m); const dTop = duzenliTop(m);
+
+window.rP1 = function() {
+  const m = curM(); const devir = window.getDevir(m); const dTop = window.duzenliTop(m);
   let html = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-  html += `<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div>`;
+  html += `<div class="sec-lbl">Gelirler</div>`;
   (S.gelirKalemler || []).forEach(k => {
-    const l = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).limit || 0);
-    const o = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).oran || 0);
-    const nl = l * (1 + o / 100); const net = k.id === 'g1' ? nl - dTop : nl;
-    html += `<div class="at-row g"><div class="at-grid"><div class="at-cell"><div class="at-ad">${k.ad}</div></div><div class="at-cell"><input class="ni" type="number" value="${l || ''}" onchange="setLim('${k.id}','${m}',this.value)"></div><div class="at-cell"><input class="ni" type="number" value="${o || ''}" onchange="setOr('${k.id}','${m}',this.value)"></div><div class="at-cell"><div class="av">${fmt(net)}</div></div></div></div>`;
+    const nl = window.netLim(k.id, m); const net = k.id === 'g1' ? nl - dTop : nl;
+    html += `<div class="at-row g"><div class="at-grid"><div class="at-cell"><b>${k.ad}</b></div><div class="at-cell"><div class="av">${fmt(net)}</div></div></div></div>`;
   });
-  const tG = atGelirTopla(m) + devir; const tGi = atGiderTopla(m); const kalan = tG - tGi;
-  html += `<div class="ozet"><div class="oz-row"><span>Kalan:</span><span style="color:${kalan >= 0 ? 'var(--G2)' : 'var(--R2)'}">${fmt(kalan)}</span></div></div>`;
+  const tG = window.atGelirTopla(m) + devir; const tGi = window.atGiderTopla(m);
+  html += `<div class="ozet"><div>Net: ${fmt(tG - tGi)}</div></div>`;
   document.getElementById('p1').innerHTML = html;
-}
+};
 
-/* ══════════════════════════════════════
-   SAYFA 2 — DÜZENLİ GİDERLER
-══════════════════════════════════════ */
-function rP2() {
+window.rP2 = function() {
   const m = curM(); const months = []; for (let i = -1; i < 11; i++) months.push(addM(m, i));
-  const top = duzenliTop(m);
-  let html = `<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
-  html += `<div style="padding:10px; background:var(--bg2); margin-bottom:10px; border-radius:8px;">Toplam: <strong>${fmt(top)}</strong></div>`;
-  
-  if (!(S.duzenli || []).length) {
-    html += `<div class="empty">Düzenli gider yok.</div>`;
-  } else {
-    html += `<div class="dg-wrap" style="overflow-x:auto"><table class="dg-tbl" style="width:100%; border-collapse:collapse"><thead><tr><th style="text-align:left">Kalem</th>`;
-    months.forEach(mo => { html += `<th>${mo.split('-')[1]}</th>`; });
-    html += `</tr></thead><tbody>`;
+  let html = `<div class="ph"><div class="pt">Düzenli Giderler</div><button onclick="addDG()">+ Ekle</button></div>`;
+  if (!(S.duzenli || []).length) html += `<div class="empty">Liste boş.</div>`;
+  else {
+    html += `<div class="dg-wrap" style="overflow-x:auto"><table class="dg-tbl"><tr><th>Kalem</th>`;
+    months.forEach(mo => html += `<th>${mo.split('-')[1]}</th>`);
+    html += `</tr>`;
     S.duzenli.forEach((dg, i) => {
-      html += `<tr><td>${dg.ad} <button onclick="delDG('${dg.id}')" style="color:red; background:none; border:none; cursor:pointer">×</button></td>`;
+      html += `<tr><td>${dg.ad}</td>`;
       months.forEach(mo => {
         const v = (dg.aylar || {})[mo] || '';
-        html += `<td><input type="number" style="width:50px" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
+        html += `<td><input type="number" style="width:40px" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
       });
       html += `</tr>`;
     });
-    html += `</tbody></table></div>`;
+    html += `</table></div>`;
   }
   document.getElementById('p2').innerHTML = html;
-}
+};
 
-/* ══════════════════════════════════════
-   SAYFA 3 — KARTLAR
-══════════════════════════════════════ */
-function rP3() {
+window.rP3 = function() {
   const m = curM();
-  let html = `<div class="ph"><div class="pt">Kredi Kartları</div></div>`;
+  let html = `<div class="ph"><div class="pt">Kartlar</div></div>`;
   (S.kartlar || []).forEach(k => {
-    const borc = kartBorcOdemeAy(k.id, m);
-    const nl = netLim(k.id, m);
-    html += `<div class="at-row r"><div class="at-grid">
-      <div class="at-cell"><div class="at-ad">${k.ad}</div><div class="at-sub">Borç: ${fmt(borc)}</div></div>
-      <div class="at-cell" style="grid-column:span 2; text-align:right; color:var(--t3)">Limit:</div>
-      <div class="at-cell"><div class="av neg">${fmt(nl)}</div></div>
-    </div></div>`;
+    const borc = window.kartBorcOdemeAy(k.id, m);
+    html += `<div class="at-row r"><div>${k.ad}: ${fmt(borc)}</div></div>`;
   });
   document.getElementById('p3').innerHTML = html;
-}
+};
 
-function addDG(){const ad=prompt('Ad:');if(!ad)return;if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad,aylar:{}});sv();rP2();}
-function delDG(id){if(!confirm('Silinsin mi?'))return;S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rP2();rP1();}
+// DG İşlemleri
+window.addDG = function(){const ad=prompt('Ad:');if(!ad)return;if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad,aylar:{}});sv();rP2();};
+window.delDG = function(id){if(!confirm('Sil?'))return;S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rP2();rP1();};
   
 /* ══════════════════════════════════════
    SAYFA 4 — İŞLEMLER
