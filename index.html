@@ -434,11 +434,12 @@ function getDevir(m){
   if(stored!==undefined&&stored!==null&&stored!=='') return parseFloat(stored);
   // currentMonth'dan önceki ay için geriye gitme — 0 döndür
   // Sadece currentMonth için önceki ayın net'ini hesapla (tek seviye)
-  if(m!==S.currentMonth) return 0;
+  const baslangicAy = '2025-01'; 
+  if (m <= baslangicAy) return 0;
   const prev=addM(m,-1);
   const g=atGelirTopla_noDevir(prev);
   const gi=atGiderTopla(prev);
-  const prevDevir=parseFloat((S.devir||{})[prev]||0);
+  const prevDevir=getDevir(prev);
   return g-gi+prevDevir;
 }
 
