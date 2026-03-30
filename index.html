@@ -406,19 +406,15 @@ function setOr(id,m,v){
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
 /* ══════════════════════════════════════════════════════════════
-   MALİ DİSİPLİN VE KART TAKİP SİSTEMİ (V7 - FULL PAKET)
+   HESAPLAMA MOTORU VE SAYFA RENDERLARI (V8)
    ══════════════════════════════════════════════════════════════ */
 
-// --- HESAPLAMA MOTORU ---
 const H = {
   duzenli: (m) => (S.duzenli || []).reduce((s, d) => s + (parseFloat((d.aylar || {})[m]) || 0), 0),
-  
   netHesap: (id, m) => {
     const d = (S.atLimitler || {})[id]?.[m] || {};
     return (parseFloat(d.limit) || 0) * (1 + (parseFloat(d.oran) || 0) / 100);
   },
-
-  // Kart Borcu: İşlemler ve Taksitleri Sayfa 5'teki kesim tarihine göre süzer
   kartBorc: (id, m) => {
     const txn = (S.txns || []).filter(t => t.tip === 'r' && t.kartId === id && t.odemeAy === m).reduce((s, t) => s + (parseFloat(t.tutar) || 0), 0);
     const tak = (S.kartTaksit || []).filter(kt => kt.kartId === id).reduce((s, kt) => {
@@ -427,7 +423,6 @@ const H = {
     }, 0);
     return txn + tak;
   },
-
   getDevir: (m) => {
     let cur = m; let acc = 0; let sft = 0;
     while (sft < 100) {
@@ -443,7 +438,6 @@ const H = {
   }
 };
 
-// --- SAYFA 1: ANA TABLO ---
 function rP1() {
   const m = curM(); const dev = H.getDevir(m); const dTop = H.duzenli(m);
   let h = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
@@ -456,14 +450,11 @@ function rP1() {
   };
   h += `<div class="sec-lbl">GELİRLER (Devir: ${fmt(dev)})</div>`;
   (S.gelirKalemler || []).forEach(k => h += row(k, 'g'));
-  h += `<div class="sec-lbl">LİMİTLER (KARTLAR)</div>`;
-  (S.kartlar || []).forEach(k => h += row(k, 'r'));
-  h += `<div class="sec-lbl">YATIRIM</div>`;
-  (S.yatirimKalemler || []).forEach(k => h += row(k, 'r'));
+  h += `<div class="sec-lbl">LİMİTLER (KART & YATIRIM)</div>`;
+  [...(S.kartlar || []), ...(S.yatirimKalemler || [])].forEach(k => h += row(k, 'r'));
   document.getElementById('p1').innerHTML = h;
 }
 
-// --- SAYFA 2: DÜZENLİ GİDERLER (GENİŞ KUTUCUKLU) ---
 function rP2() {
   const m = curM(); const mos = []; for(let i=-1; i<11; i++) mos.push(addM(m, i));
   let h = `<div class="ph"><div class="pt">Düzenli Giderler</div><button onclick="addDG()">+ Ekle</button></div>`;
@@ -474,7 +465,7 @@ function rP2() {
     h += `<tr><td class="sticky">${dg.ad} <span onclick="delDG('${dg.id}')" style="color:red;cursor:pointer">×</span></td>`;
     mos.forEach(mo => {
       const v = (dg.aylar || {})[mo] || '';
-      h += `<td><input type="number" style="width:80px; text-align:center; background:#333; color:white; border:none; padding:5px; border-radius:4px" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={}; S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0; sv(); rP1();"></td>`;
+      h += `<td><input type="number" style="width:85px; padding:5px; text-align:center; background:#333; color:white; border:none; border-radius:4px;" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={}; S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0; sv(); rP1();"></td>`;
     });
     h += `</tr>`;
   });
@@ -482,7 +473,6 @@ function rP2() {
   document.getElementById('p2').innerHTML = h;
 }
 
-// --- SAYFA 3: KARTLAR ---
 function rP3() {
   const m = curM();
   let h = `<div class="ph"><div class="pt">Kart Takibi</div><button onclick="addKrt()">+ Kart</button></div>`;
@@ -501,59 +491,73 @@ function rP3() {
   document.getElementById('p3').innerHTML = h;
 }
 
-// --- SAYFA 4: İŞLEMLER (LİSTELENEBİLİR VE SİLİNEBİLİR) ---
 function rP4() {
   const m = curM();
-  let h = `<div class="ph"><div class="pt">İşlemler</div><button onclick="openAddTxn()">+ Harcama</button></div>`;
+  let h = `<div class="ph"><div class="pt">İşlemler</div><button onclick="openQ()">+ Harcama Ekle</button></div>`;
   const ayTxns = (S.txns || []).filter(t => t.odemeAy === m);
   h += `<div class="sec-lbl">Bu Ayın Harcamaları</div>`;
   if(!ayTxns.length) h += `<p style="padding:10px; color:#666">İşlem yok.</p>`;
   ayTxns.forEach(t => {
     const kName = (S.kartlar || []).find(k => k.id === t.kartId)?.ad || 'Nakit';
     h += `<div class="at-row" style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #333">
-      <div><b>${t.ad}</b><br><small>${kName}</small></div>
-      <div style="text-align:right"><b style="color:var(--R2)">${fmt(t.tutar)}</b><br><button onclick="delTxn('${t.id}')" style="background:none;border:none;color:red;font-size:0.8em;cursor:pointer">Sil</button></div>
+      <div><b>${t.not || t.ad || 'Harcama'}</b><br><small>${kName}</small></div>
+      <div style="text-align:right"><b style="color:var(--R2)">${fmt(t.tutar)}</b><br><button onclick="delTxn('${t.id || t.tarih}')" style="background:none;border:none;color:red;font-size:0.8em;cursor:pointer">Sil</button></div>
     </div>`;
   });
   document.getElementById('p4').innerHTML = h;
 }
 
-// --- SAYFA 5: AYARLAR (HESAP KESİM & GENEL) ---
 function rP5() {
   let h = `<div class="ph"><div class="pt">Ayarlar</div></div>`;
   h += `<div class="sec-lbl">Kart Hesap Kesim Günleri</div>`;
   (S.kartlar || []).forEach(k => {
-    const gun = S.kesimGunleri?.[k.id] || 1;
     h += `<div class="at-row" style="display:flex; justify-content:space-between; padding:10px; align-items:center">
       <span>${k.ad}</span>
-      <input type="number" value="${gun}" min="1" max="31" style="width:50px; text-align:center" onchange="setKesim('${k.id}', this.value)">
+      <input type="number" value="${k.kesim || 1}" min="1" max="31" style="width:50px; text-align:center" onchange="k.kesim=parseInt(this.value); sv();">
     </div>`;
   });
-  h += `<div style="margin-top:30px; padding:10px;"><button class="bs r" onclick="if(confirm('TÜM VERİLER SİLİNECEK! Emin misiniz?')){localStorage.clear();location.reload();}">Verileri Sıfırla</button></div>`;
+  h += `<div style="margin-top:30px; padding:10px;"><button class="bs r" onclick="if(confirm('SIFIRLA?')){localStorage.clear();location.reload();}">Tüm Verileri Temizle</button></div>`;
   document.getElementById('p5').innerHTML = h;
 }
 
-// --- YARDIMCI FONKSİYONLAR ---
-function setKesim(id, gun) { if(!S.kesimGunleri) S.kesimGunleri = {}; S.kesimGunleri[id] = parseInt(gun); sv(); }
-function openAddTxn() {
-  const ad = prompt("Harcama:"); if(!ad) return;
-  const tutar = parseFloat(prompt("Tutar:")); if(isNaN(tutar)) return;
-  const krtId = prompt("Kart ID (Veya boş bırakın):");
-  if(!S.txns) S.txns = [];
-  S.txns.push({ id: 't'+Date.now(), ad, tutar, kartId: krtId, odemeAy: curM(), tip: 'r' });
-  sv(); gT(4);
+/* ══════════════════════════════════════
+   QUICK MODAL (SENİN ÖZEL MENÜN)
+══════════════════════════════════════ */
+let qTip='r';
+function openQ(){
+  document.getElementById('qd').value=today();
+  document.getElementById('qt').value='';
+  document.getElementById('qn').value='';
+  document.getElementById('qmsg').textContent='';
+  document.getElementById('en').style.display='none';
+  document.getElementById('qtbas').value=curM();
+  setQT('r');
+  document.getElementById('qm').classList.add('open');
+  setTimeout(()=>document.getElementById('qt').focus(),300);
 }
-function delTxn(id) { if(confirm("Sil?")) { S.txns = S.txns.filter(t => t.id !== id); sv(); rP4(); } }
-function addDG(){const a=prompt('Ad:');if(a){if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad:a,aylar:{}});sv();rP2();}}
-function delDG(id){if(confirm('Sil?')){S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rP1();rP2();}}
-function addKrt(){const a=prompt('Ad:');if(a){if(!S.kartlar)S.kartlar=[];S.kartlar.push({id:'k'+Date.now(),ad:a});sv();rP3();rP1();}}
-function delKrt(id){if(confirm('Sil?')){S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP3();rP1();}}
+function closeQ(e){if(e&&e.target!==document.getElementById('qm'))return;document.getElementById('qm').classList.remove('open');}
 
-function gT(p) { 
-  curP = p; 
-  document.querySelectorAll('.page').forEach(e => e.classList.remove('active'));
-  document.getElementById('p'+p).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-  if(document.querySelectorAll('.nav-item')[p-1]) document.querySelectorAll('.nav-item')[p-1].classList.add('active');
-  if(p==1) rP1(); if(p==2) rP2(); if(p==3) rP3(); if(p==4) rP4(); if(p==5) rP5();
+function setQT(t){
+  qTip=t;
+  ['r','t','g'].forEach(x=>{ document.getElementById('qb'+x).className=t===x?`on-${t}`:''; });
+  document.getElementById('qform-r').style.display=t==='r'?'block':'none';
+  document.getElementById('qform-t').style.display=t==='t'?'block':'none';
+  document.getElementById('qform-g').style.display=t==='g'?'block':'none';
+
+  if(t==='r'){
+    document.getElementById('qk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad} (kesim:${k.kesim})</option>`).join('');
+    document.getElementById('qc').innerHTML=CATS_R.map(c=>`<option>${c}</option>`).join('');
+  } else if(t==='t'){
+    document.getElementById('qtk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad} (kesim:${k.kesim})</option>`).join('');
+    document.getElementById('qtcat').innerHTML=CATS_T.map(c=>`<option>${c}</option>`).join('');
+  } else {
+    document.getElementById('qgk').innerHTML=(S.gelirKalemler||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
+  }
 }
+
+function updEN(){
+  const tarih=document.getElementById('qd').value;
+  const kid=document.getElementById('qk').value;
+  const en=document.getElementById('en');
+  if(!tarih){en.style.display='none';return;}
+  const kart=(S.kart
