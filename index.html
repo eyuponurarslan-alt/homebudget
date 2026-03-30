@@ -407,6 +407,7 @@ function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
 /* ── HESAPLAMA MOTORU (GÜVENLİ VE DÖNGÜSEL) ── */
 
+// A. Yardımcı Hesaplayıcılar (Diğerleri bunları kullanır)
 function duzenliTop(m) {
   return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
 }
@@ -431,24 +432,29 @@ function atGiderTopla(m) {
   return kartlar + yat;
 }
 
+// B. Ana Devir Fonksiyonu
 function getDevir(m) {
-    let currentMonth = m;
-    let totalAccumulated = 0;
-    let safetyCounter = 0;
-    while (safetyCounter < 100) {
-        const stored = (S.devir || {})[currentMonth];
-        if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
-            return parseFloat(stored) + totalAccumulated;
-        }
-        const prevMonth = addM(currentMonth, -1);
-        if (prevMonth === currentMonth || currentMonth < "2024-01") break;
-        const g = atGelirTopla(prevMonth);
-        const gi = atGiderTopla(prevMonth);
-        totalAccumulated += (g - gi);
-        currentMonth = prevMonth;
-        safetyCounter++;
+  let currentMonth = m;
+  let totalAccumulated = 0;
+  let safetyCounter = 0;
+
+  while (safetyCounter < 100) {
+    const stored = (S.devir || {})[currentMonth];
+    if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
+      return parseFloat(stored) + totalAccumulated;
     }
-    return totalAccumulated;
+
+    const prevMonth = addM(currentMonth, -1);
+    if (prevMonth === currentMonth || currentMonth < "2024-01") break;
+
+    const g = atGelirTopla(prevMonth);
+    const gi = atGiderTopla(prevMonth);
+    totalAccumulated += (g - gi);
+
+    currentMonth = prevMonth;
+    safetyCounter++;
+  }
+  return totalAccumulated;
 }
 
 /* ══════════════════════════════════════
@@ -462,6 +468,7 @@ function rP1(){
   let html=`<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
   html+=`<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div>`;
 
+  /* GELİRLER */
   html+=`<div class="sec-lbl">Gelirler</div>`;
   (S.gelirKalemler||[]).forEach(k=>{
     const l=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).limit||0);
@@ -476,6 +483,7 @@ function rP1(){
     </div></div>`;
   });
 
+  /* DEVİR */
   html+=`<div class="at-row p"><div class="at-grid">
     <div class="at-cell"><div class="at-ad" style="color:var(--P)">Devirli Bakiye</div><div class="at-sub">Boş bırak → önceki ay net'i</div></div>
     <div class="at-cell" style="grid-column:span 2">
@@ -485,6 +493,7 @@ function rP1(){
     <div class="at-cell"><div class="av pur">${fmt(devir)}</div></div>
   </div></div>`;
 
+  /* KART LİMİTLERİ */
   html+=`<div class="sec-lbl">Kart Limitleri</div>`;
   (S.kartlar||[]).forEach(k=>{
     const l=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).limit||0);
@@ -498,21 +507,7 @@ function rP1(){
     </div></div>`;
   });
 
-  if((S.yatirimKalemler||[]).length){
-    html+=`<div class="sec-lbl">Yatırım</div>`;
-    (S.yatirimKalemler||[]).forEach(k=>{
-      const l=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).limit||0);
-      const o=parseFloat(((S.atLimitler[k.id]||{})[m]||{}).oran||0);
-      const nl=l*(1+o/100);
-      html+=`<div class="at-row b"><div class="at-grid">
-        <div class="at-cell"><div class="at-ad">${k.ad}</div></div>
-        <div class="at-cell"><input class="ni" type="number" value="${l||''}" placeholder="0" onchange="setLim('${k.id}','${m}',this.value)"></div>
-        <div class="at-cell"><input class="ni" type="number" value="${o||''}" placeholder="0" onchange="setOr('${k.id}','${m}',this.value)"></div>
-        <div class="at-cell"><div class="av blu">${fmt(nl)}</div></div>
-      </div></div>`;
-    });
-  }
-
+  /* ÖZET */
   const tG=atGelirTopla(m)+devir;
   const tGi=atGiderTopla(m);
   const kalan=tG-tGi;
@@ -533,21 +528,18 @@ function rP2(){
   const months=[]; for(let i=-1;i<11;i++) months.push(addM(m,i));
   const top=duzenliTop(m);
   let html=`<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
-  html+=`<div class="dg-sum"><span>Bu Ay Toplam</span><strong>${fmt(top)}</strong></div>`;
-  
   if(!(S.duzenli||[]).length){
     html+=`<div class="empty">Henüz düzenli gider yok.</div>`;
     document.getElementById('p2').innerHTML=html; return;
   }
-
   html+=`<div class="dg-wrap"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
-  months.forEach(mo=>{ const ic=mo===m; html+=`<th class="${ic?'cur':''}">${MN[parseInt(mo.split('-')[1])-1]}</th>`; });
+  months.forEach(mo=>{ html+=`<th>${MN[parseInt(mo.split('-')[1])-1]}</th>`; });
   html+=`</tr></thead><tbody>`;
   (S.duzenli||[]).forEach((dg,i)=>{
     html+=`<tr><td class="sticky">${dg.ad} <button onclick="delDG('${dg.id}')">×</button></td>`;
     months.forEach(mo=>{
       const v=(dg.aylar||{})[mo]||'';
-      html+=`<td class="${mo===m?'cur-col':''}"><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
+      html+=`<td><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
     });
     html+=`</tr>`;
   });
