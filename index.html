@@ -623,13 +623,14 @@ function delDG(id){if(!confirm('Silinsin mi?'))return;S.duzenli=S.duzenli.filter
 ══════════════════════════════════════ */
 function rP3(){
   const m=curM();
+  const limitAy = addM(m, 1);
   let html=`<div class="ph"><div class="pt">Kartlar — ${mLbl(m)}</div></div>`;
   html+=`<div class="info">
     <strong>Ekstre mantığı:</strong> Harcama tarihi ≤ kesim günü → bu ayın ekstresi → <em>bir sonraki ay</em> ödenir. Harcama tarihi > kesim günü → sonraki ayın ekstresi → <em>iki ay sonra</em> ödenir.
   </div>`;
 
   (S.kartlar||[]).forEach(k=>{
-    const limit=netLim(k.id,m); // Ana tablo limiti (referans için)
+    const limit=netLim(k.id,limitAy); // Ana tablo limiti (referans için)
     const borc=kartBorcEkstreAy(k.id,m);
     const kalan=limit-borc;
     const pct=limit>0?Math.min(100,Math.round(borc/limit*100)):0;
