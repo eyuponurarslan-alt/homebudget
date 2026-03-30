@@ -522,50 +522,105 @@ function rP5() {
   document.getElementById('p5').innerHTML = h;
 }
 
-// 3. QUICK MODAL VE DİĞER FONKSİYONLAR
-let qTip='r';
-function openQ(){
-  document.getElementById('qd').value=today();
-  document.getElementById('qt').value='';
-  document.getElementById('qn').value='';
-  document.getElementById('qmsg').textContent='';
-  document.getElementById('en').style.display='none';
-  document.getElementById('qtbas').value=curM();
+/* ══════════════════════════════════════════════════════════════
+   3. QUICK MODAL VE DİĞER FONKSİYONLAR (DÜZELTİLMİŞ)
+   ══════════════════════════════════════════════════════════════ */
+let qTip = 'r';
+
+function openQ() {
+  document.getElementById('qd').value = today();
+  document.getElementById('qt').value = '';
+  document.getElementById('qn').value = '';
+  if(document.getElementById('qmsg')) document.getElementById('qmsg').textContent = '';
+  if(document.getElementById('en')) document.getElementById('en').style.display = 'none';
+  document.getElementById('qtbas').value = curM();
   setQT('r');
   document.getElementById('qm').classList.add('open');
 }
-function closeQ(e){if(e&&e.target!==document.getElementById('qm'))return;document.getElementById('qm').classList.remove('open');}
 
-function setQT(t){
-  qTip=t;
-  ['r','t','g'].forEach(x=>{ document.getElementById('qb'+x).className=t===x?`on-${t}`:''; });
-  document.getElementById('qform-r').style.display=t==='r'?'block':'none';
-  document.getElementById('qform-t').style.display=t==='t'?'block':'none';
-  document.getElementById('qform-g').style.display=t==='g'?'block':'none';
-  if(t==='r'){
-    document.getElementById('qk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
-    document.getElementById('qc').innerHTML=CATS_R.map(c=>`<option>${c}</option>`).join('');
-  } else if(t==='t'){
-    document.getElementById('qtk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
-    document.getElementById('qtcat').innerHTML=CATS_T.map(c=>`<option>${c}</option>`).join('');
-  } else {
-    document.getElementById('qgk').innerHTML=(S.gelirKalemler||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
+function closeQ(e) {
+  if (e && e.target !== document.getElementById('qm')) return;
+  document.getElementById('qm').classList.remove('open');
+}
+
+function setQT(t) {
+  qTip = t;
+  ['r', 't', 'g'].forEach(x => {
+    const btn = document.getElementById('qb' + x);
+    if(btn) btn.className = t === x ? `on-${t}` : '';
+  });
+  
+  document.getElementById('qform-r').style.display = t === 'r' ? 'block' : 'none';
+  document.getElementById('qform-t').style.display = t === 't' ? 'block' : 'none';
+  document.getElementById('qform-g').style.display = t === 'g' ? 'block' : 'none';
+
+  if (t === 'r') {
+    document.getElementById('qk').innerHTML = (S.kartlar || []).map(k => `<option value="${k.id}">${k.ad}</option>`).join('');
+    document.getElementById('qc').innerHTML = CATS_R.map(c => `<option>${c}</option>`).join('');
+  } else if (t === 't') {
+    document.getElementById('qtk').innerHTML = (S.kartlar || []).map(k => `<option value="${k.id}">${k.ad}</option>`).join('');
+    document.getElementById('qtcat').innerHTML = CATS_T.map(c => `<option>${c}</option>`).join('');
+  } else if (t === 'g') {
+    document.getElementById('qgk').innerHTML = (S.gelirKalemler || []).map(k => `<option value="${k.id}">${k.ad}</option>`).join('');
   }
 }
 
-function saveQ(){
-  if(qTip==='r'){
-    const tarih=document.getElementById('qd').value;
-    const tutar=parseFloat(document.getElementById('qt').value||0);
-    const kartId=document.getElementById('qk').value;
-    const odemeAy=hesaplaOdemeAy(tarih, (S.kartlar.find(k=>k.id===kartId)||{}).kesim || 1);
-    if(!S.txns)S.txns=[];
-    S.txns.push({id:Date.now(),tarih,tip:'r',kartId,odemeAy,tutar,not:document.getElementById('qn').value});
-  } else if(qTip==='t'){
-    if(!S.kartTaksit)S.kartTaksit=[];
-    S.kartTaksit.push({id:'kt'+Date.now(),kartId:document.getElementById('qtk').value,ad:document.getElementById('qtad').value,aylikTutar:parseFloat(document.getElementById('qtamt').value),taksitSayisi:parseInt(document.getElementById('qtsay').value),baslangicAy:document.getElementById('qtbas').value});
+function saveQ() {
+  if (qTip === 'r') {
+    const tarih = document.getElementById('qd').value;
+    const tutar = parseFloat(document.getElementById('qt').value || 0);
+    const kartId = document.getElementById('qk').value;
+    const kategori = document.getElementById('qc').value; // Eksik olan buydu
+    const not = document.getElementById('qn').value;
+
+    if (!tarih || !tutar) return alert("Tarih ve tutar giriniz!");
+
+    const kart = (S.kartlar || []).find(k => k.id === kartId);
+    const odemeAy = hesaplaOdemeAy(tarih, (kart || {}).kesim || 1);
+
+    if (!S.txns) S.txns = [];
+    S.txns.push({
+      id: Date.now(),
+      tarih: tarih,
+      tip: 'r',
+      kartId: kartId,
+      odemeAy: odemeAy,
+      tutar: tutar,
+      kat: kategori, // Kategori artık ekleniyor
+      not: not
+    });
+
+  } else if (qTip === 't') {
+    const kartId = document.getElementById('qtk').value;
+    const ad = document.getElementById('qtad').value;
+    const tutar = parseFloat(document.getElementById('qtamt').value || 0);
+    const sayi = parseInt(document.getElementById('qtsay').value || 1);
+    const basAy = document.getElementById('qtbas').value;
+    const kat = document.getElementById('qtcat').value;
+
+    if (!ad || !tutar) return alert("Eksik alanları doldurun!");
+
+    if (!S.kartTaksit) S.kartTaksit = [];
+    S.kartTaksit.push({
+      id: 'kt' + Date.now(),
+      kartId: kartId,
+      ad: ad,
+      kat: kat,
+      aylikTutar: tutar,
+      taksitSayisi: sayi,
+      baslangicAy: basAy
+    });
+  } else if (qTip === 'g') {
+      const tarih = document.getElementById('qgd')?.value || today();
+      const tutar = parseFloat(document.getElementById('qgt')?.value || 0);
+      const not = document.getElementById('qgn')?.value || '';
+      if(!S.txns) S.txns = [];
+      S.txns.push({id: Date.now(), tarih, tip: 'g', odemeAy: null, tutar, not, kat: 'Gelir'});
   }
-  sv(); rAll(); document.getElementById('qm').classList.remove('open');
+
+  sv(); // Veriyi kaydet
+  rAll(); // Arayüzü yenile
+  document.getElementById('qm').classList.remove('open'); // Modalı kapat
 }
 
 // 4. NAVİGASYON (SENİN ORİJİNAL YAPIN)
