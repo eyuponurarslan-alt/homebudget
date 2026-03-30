@@ -26,7 +26,7 @@
         #auth { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; }
         #auth.hide { display: none; }
         .abox { width: 100%; max-width: 360px; }
-        .ah { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+        .ah { font-size: 28px; font-weight: 700; margin-bottom: 20px; text-align: center;}
         .ig { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
         .ig label { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: .09em; }
         input, select { background: var(--bg3); border: 1px solid var(--b2); border-radius: var(--rs); color: var(--t); font-size: 15px; padding: 12px; width: 100%; outline: none; }
@@ -38,60 +38,62 @@
         /* APP LAYOUT */
         #app { display: none; flex-direction: column; height: 100vh; max-width: 700px; margin: 0 auto; }
         #app.show { display: flex; }
-        #scr { flex: 1; overflow-y: auto; padding: 15px 15px 120px; }
+        #scr { flex: 1; overflow-y: auto; padding: 15px 15px 120px; scrollbar-width: none; }
+        #scr::-webkit-scrollbar { display: none; }
         #sd { position: fixed; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--t3); z-index: 100; }
         #sd.ok { background: var(--G); }
         #sd.sy { background: var(--A); animation: blink 0.8s infinite; }
         @keyframes blink { 50% { opacity: 0.3; } }
 
         /* TABS */
-        #tbar { height: var(--tab); background: rgba(9,9,9,0.95); border-top: 1px solid var(--b); display: flex; backdrop-filter: blur(10px); }
+        #tbar { height: var(--tab); background: rgba(9,9,9,0.95); border-top: 1px solid var(--b); display: flex; backdrop-filter: blur(10px); flex-shrink: 0; }
         .tb { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: none; background: none; color: var(--t3); font-weight: 700; font-size: 9px; text-transform: uppercase; cursor: pointer; }
         .tb.on { color: var(--A); }
         .tb svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
 
-        /* UI ELEMENTS */
+        /* ANA TABLO & GRID */
         .pg { display: none; } .pg.on { display: block; }
-        .mnav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; background: var(--bg2); padding: 10px; border-radius: var(--r); }
-        .mname { font-family: var(--fm); font-weight: 700; color: var(--A); }
-        .mnav button { background: var(--bg3); border: none; color: var(--t); padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 18px; }
+        .mnav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .mname { font-family: var(--fm); font-weight: 700; color: var(--A); font-size: 18px; }
+        .mnav button { background: var(--bg3); border: none; color: var(--t); padding: 8px 16px; border-radius: var(--rs); cursor: pointer; }
         
-        .at-row { background: var(--bg2); border: 1px solid var(--b); border-radius: var(--r); margin-bottom: 6px; padding: 10px; }
-        .at-grid { display: grid; grid-template-columns: 1fr 80px 60px 90px; gap: 5px; align-items: center; }
-        .ni { background: transparent; border: none; border-bottom: 1px solid var(--b); text-align: right; padding: 2px; font-family: var(--fm); font-size: 13px; }
-        .sec-lbl { font-size: 10px; color: var(--t3); text-transform: uppercase; margin: 20px 0 10px; letter-spacing: 1px; border-bottom: 1px solid var(--b); padding-bottom: 5px; }
-        
-        /* MODAL */
-        #qm { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 500; align-items: flex-end; }
-        #qm.open { display: flex; }
-        .qs { background: var(--bg2); width: 100%; border-radius: 20px 20px 0 0; padding: 20px; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .qtype { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 20px; }
-        .qtype button { padding: 10px; border: none; border-radius: var(--rs); background: var(--bg3); color: var(--t3); font-weight: 600; cursor: pointer; }
-        .qtype button.on-r { background: var(--rBg); color: var(--R2); }
-        .qtype button.on-t { background: var(--aBg); color: var(--A); }
-        .qtype button.on-g { background: var(--gBg); color: var(--G2); }
-        
-        /* TX ROW */
-        .txr { display: flex; align-items: center; justify-content: space-between; background: var(--bg2); padding: 12px; border-radius: var(--r); margin-bottom: 8px; border: 1px solid var(--b); }
+        .at-hdr { display: grid; grid-template-columns: 1fr 80px 60px 90px; padding: 0 10px 5px; font-size: 10px; color: var(--t3); text-transform: uppercase; }
+        .at-row { background: var(--bg2); border: 1px solid var(--b); border-radius: var(--r); margin-bottom: 5px; overflow: hidden; }
+        .at-grid { display: grid; grid-template-columns: 1fr 80px 60px 90px; align-items: center; }
+        .at-cell { padding: 10px; border-right: 1px solid var(--b); display: flex; align-items: center; height: 44px; }
+        .at-cell:last-child { border-right: none; justify-content: flex-end; }
+        .ni { background: transparent; border: none; text-align: right; width: 100%; color: var(--t); font-family: var(--fm); font-size: 13px; outline: none; }
+        .av { font-family: var(--fm); font-weight: 700; font-size: 13px; }
+        .pos { color: var(--G2); } .neg { color: var(--R2); }
+        .sec-lbl { font-size: 10px; color: var(--t3); text-transform: uppercase; margin: 15px 0 8px 5px; letter-spacing: 1px; }
+
+        /* DÜZENLİ TABLO (SCROLLABLE) */
+        .dg-wrap { overflow-x: auto; margin: 0 -15px; padding: 0 15px; -webkit-overflow-scrolling: touch; }
+        .dg-tbl { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .dg-tbl th { text-align: right; padding: 10px; font-size: 10px; color: var(--t3); border-bottom: 1px solid var(--b); }
+        .dg-tbl th:first-child { text-align: left; position: sticky; left: 0; background: var(--bg); z-index: 2; }
+        .dg-tbl td { padding: 8px; border-bottom: 1px solid var(--b); text-align: right; }
+        .dg-tbl td:first-child { text-align: left; position: sticky; left: 0; background: var(--bg2); z-index: 1; font-weight: 600; font-size: 13px; }
+
+        /* TX ROW (İşlemler) */
+        .txr { display: flex; align-items: center; justify-content: space-between; background: var(--bg2); padding: 12px; border-radius: var(--r); margin-bottom: 6px; border: 1px solid var(--b); }
         .txn { font-weight: 600; font-size: 14px; }
         .txs { font-size: 11px; color: var(--t3); margin-top: 2px; }
-        .txa { font-family: var(--fm); font-weight: 600; }
-        .txa.neg { color: var(--R2); }
-        .txdel { color: var(--t3); background: none; border: none; padding: 5px; cursor: pointer; }
+        .txdel { color: var(--R2); background: none; border: none; padding: 8px; cursor: pointer; font-size: 16px; }
 
-        #fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; border-radius: 28px; background: var(--A); border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 100; }
+        #fab { position: fixed; bottom: 85px; right: 20px; width: 56px; height: 56px; border-radius: 28px; background: var(--A); border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,0,0,0.4); z-index: 99; }
+        .empty { text-align: center; padding: 40px; color: var(--t3); font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div id="auth">
     <div class="abox">
-        <div class="ah">Giriş Yap</div>
-        <div class="ig"><label for="ae">E-Posta</label><input type="email" id="ae" placeholder="mail@adres.com"></div>
-        <div class="ig"><label for="ap">Şifre</label><input type="password" id="ap" placeholder="••••••"></div>
+        <div class="ah">Bütçe Giriş</div>
+        <div class="ig"><label for="ae">E-Posta</label><input type="email" id="ae" autocomplete="email" placeholder="mail@adres.com"></div>
+        <div class="ig"><label for="ap">Şifre</label><input type="password" id="ap" autocomplete="current-password" placeholder="••••••"></div>
         <button class="bf pri" onclick="doLogin()">Giriş Yap</button>
-        <button class="bf sec" onclick="doReg()">Kayıt Ol</button>
+        <button class="bf sec" onclick="doReg()">Yeni Hesap</button>
         <div id="amsg" style="color:var(--R2); font-size:12px; text-align:center;"></div>
     </div>
 </div>
@@ -108,254 +110,12 @@
     </div>
 
     <button id="fab" onclick="openQ()">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#000" stroke-width="3" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 5v14M5 12h14" stroke="#000" stroke-width="3" stroke-linecap="round"/></svg>
     </button>
 
     <nav id="tbar">
-        <button class="tb on" onclick="gT(1,this)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Özet</span></button>
+        <button class="tb on" onclick="gT(1,this)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Ana Tablo</span></button>
         <button class="tb" onclick="gT(2,this)"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Düzenli</span></button>
         <button class="tb" onclick="gT(3,this)"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Kartlar</span></button>
         <button class="tb" onclick="gT(4,this)"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>İşlemler</span></button>
-        <button class="tb" onclick="gT(5,this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ayar</span></button>
-    </nav>
-</div>
-
-<div id="qm" onclick="closeQ(event)">
-    <div class="qs" onclick="event.stopPropagation()">
-        <div class="qtype">
-            <button id="qbr" type="button" onclick="setQT('r')">Harcama</button>
-            <button id="qbt" type="button" onclick="setQT('t')">Taksit</button>
-            <button id="qbg" type="button" onclick="setQT('g')">Gelir</button>
-        </div>
-        
-        <div id="qf">
-            </div>
-
-        <button class="bf pri" onclick="saveQ()" style="margin-top:15px">Kaydet</button>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAq6IUR72qKIcueiU7m-teS_iON80yL9TI",
-        authDomain: "finans-takip-7b6eb.firebaseapp.com",
-        databaseURL: "https://finans-takip-7b6eb-default-rtdb.firebaseio.com",
-        projectId: "finans-takip-7b6eb",
-        storageBucket: "finans-takip-7b6eb.firebasestorage.app",
-        messagingSenderId: "356277005617",
-        appId: "1:356277005617:web:101a6b09023b87785d9410"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-
-    let uid = null;
-    window.S = {
-        currentMonth: new Date().toISOString().slice(0,7),
-        txns: [], kartlar: [], duzenli: [], atLimitler: {}, kartTaksit: [], gelirKalemler: []
-    };
-
-    // Auth İşlemleri
-    window.doLogin = () => {
-        const e = document.getElementById('ae').value, p = document.getElementById('ap').value;
-        signInWithEmailAndPassword(auth, e, p).catch(err => document.getElementById('amsg').innerText = "Hata!");
-    };
-    window.doReg = () => {
-        const e = document.getElementById('ae').value, p = document.getElementById('ap').value;
-        createUserWithEmailAndPassword(auth, e, p);
-    };
-
-    onAuthStateChanged(auth, user => {
-        if (user) {
-            uid = user.uid;
-            document.getElementById('auth').classList.add('hide');
-            document.getElementById('app').classList.add('show');
-            onValue(ref(db, `bv4/${uid}`), snap => {
-                const data = snap.val();
-                if (data) {
-                    window.S = data;
-                    if(!S.txns) S.txns = [];
-                    if(!Array.isArray(S.txns)) S.txns = Object.values(S.txns);
-                }
-                window.rAll();
-            });
-        }
-    });
-
-    window._sv = () => {
-        if (uid) {
-            document.getElementById('sd').className = 'sy';
-            set(ref(db, `bv4/${uid}`), window.S).then(() => {
-                document.getElementById('sd').className = 'ok';
-            });
-        }
-    };
-</script>
-
-<script>
-    const MN = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-    const curM = () => S.currentMonth;
-    const sv = () => window._sv();
-    const fmt = v => '₺' + Math.round(v).toLocaleString('tr-TR');
-    const today = () => new Date().toISOString().slice(0,10);
-
-    function addM(ym, n) {
-        let [y, m] = ym.split('-').map(Number);
-        m += n;
-        while(m > 12) { m -= 12; y++; }
-        while(m < 1) { m += 12; y--; }
-        return `${y}-${String(m).padStart(2, '0')}`;
-    }
-
-    function mLbl(m) {
-        const [y, mo] = m.split('-').map(Number);
-        return MN[mo-1] + ' ' + y;
-    }
-
-    let qTip = 'r';
-    function openQ() {
-        setQT('r');
-        document.getElementById('qm').classList.add('open');
-    }
-    function closeQ() { document.getElementById('qm').classList.remove('open'); }
-
-    function setQT(t) {
-        qTip = t;
-        ['r','t','g'].forEach(x => document.getElementById('qb'+x).className = (t===x ? 'on-'+t : ''));
-        const f = document.getElementById('qf');
-        if(t==='r') {
-            f.innerHTML = `
-                <div class="ig"><label for="qd">Tarih</label><input type="date" id="qd" value="${today()}"></div>
-                <div class="ig"><label for="qt">Tutar</label><input type="number" id="qt" placeholder="0" inputmode="decimal"></div>
-                <div class="ig"><label for="qk">Kart</label><select id="qk">${S.kartlar.map(k=>`<option value="${k.id}">${k.ad}</option>`).join('')}</select></div>
-                <div class="ig"><label for="qn">Not</label><input type="text" id="qn" placeholder="Market vb."></div>
-            `;
-        } else if(t==='t') {
-            f.innerHTML = `
-                <div class="ig"><label for="qtad">Harcama Adı</label><input type="text" id="qtad" placeholder="Ceket, TV vb."></div>
-                <div class="ig"><label for="qtamt">Aylık Tutar</label><input type="number" id="qtamt" placeholder="0"></div>
-                <div class="ig"><label for="qtsay">Taksit Sayısı</label><input type="number" id="qtsay" value="1"></div>
-                <div class="ig"><label for="qtk">Kart</label><select id="qtk">${S.kartlar.map(k=>`<option value="${k.id}">${k.ad}</option>`).join('')}</select></div>
-                <div class="ig"><label for="qtbas">Başlangıç Ayı</label><input type="month" id="qtbas" value="${curM()}"></div>
-            `;
-        } else {
-            f.innerHTML = `
-                <div class="ig"><label for="qgt">Gelir Tutarı</label><input type="number" id="qgt" placeholder="0"></div>
-                <div class="ig"><label for="qgn">Not</label><input type="text" id="qgn" placeholder="Maaş vb."></div>
-            `;
-        }
-    }
-
-    function saveQ() {
-        if(qTip === 'r') {
-            const t = document.getElementById('qd').value;
-            const kId = document.getElementById('qk').value;
-            const kart = S.kartlar.find(k=>k.id===kId);
-            let [y, m, d] = t.split('-').map(Number);
-            if(d > (kart?.kesim || 31)) m++;
-            if(m > 12) { m=1; y++; }
-            const oAy = `${y}-${String(m).padStart(2,'0')}`;
-            
-            S.txns.push({
-                id: Date.now(),
-                tarih: t,
-                tip: 'r',
-                kartId: kId,
-                odemeAy: oAy,
-                tutar: parseFloat(document.getElementById('qt').value || 0),
-                not: document.getElementById('qn').value
-            });
-        } else if(qTip === 't') {
-            S.kartTaksit.push({
-                id: 'kt'+Date.now(),
-                kartId: document.getElementById('qtk').value,
-                ad: document.getElementById('qtad').value,
-                aylikTutar: parseFloat(document.getElementById('qtamt').value || 0),
-                taksitSayisi: parseInt(document.getElementById('qtsay').value || 1),
-                baslangicAy: document.getElementById('qtbas').value
-            });
-        }
-        sv(); closeQ(); rAll();
-    }
-
-    function rP4() {
-        const m = curM();
-        let h = `<div class="ph"><div class="pt">İşlemler</div></div>`;
-        h += `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-        
-        const list = (S.txns || []).filter(t => t.odemeAy === m);
-        
-        // Taksitleri de ekle
-        (S.kartTaksit || []).forEach(kt => {
-            const end = addM(kt.baslangicAy, kt.taksitSayisi - 1);
-            if(m >= kt.baslangicAy && m <= end) {
-                list.push({ isTak: true, not: kt.ad, tutar: kt.aylikTutar, kartId: kt.kartId });
-            }
-        });
-
-        h += `<div class="sec-lbl">BU AYIN HAREKETLERİ</div>`;
-        if(!list.length) h += `<div style="text-align:center; padding:40px; color:var(--t3)">İşlem yok</div>`;
-        
-        list.forEach(t => {
-            const kName = S.kartlar.find(k=>k.id===t.kartId)?.ad || 'Nakit';
-            h += `
-                <div class="txr">
-                    <div>
-                        <div class="txn">${t.not || 'Harcama'} ${t.isTak ? '(Taksit)' : ''}</div>
-                        <div class="txs">${kName}</div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:15px">
-                        <div class="txa neg">${fmt(t.tutar)}</div>
-                        ${!t.isTak ? `<button class="txdel" onclick="delTxn(${t.id})">✕</button>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        document.getElementById('p4').innerHTML = h;
-    }
-
-    function delTxn(id) {
-        if(confirm("Silinsin mi?")) {
-            S.txns = S.txns.filter(t => t.id !== id);
-            sv(); rAll();
-        }
-    }
-
-    // Navigasyon
-    window.gT = (n, el) => {
-        document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
-        document.querySelectorAll('.tb').forEach(t => t.classList.remove('on'));
-        document.getElementById('p'+n).classList.add('on');
-        el.classList.add('on');
-        rAll();
-    };
-
-    window.rAll = () => {
-        const active = document.querySelector('.pg.on').id;
-        if(active === 'p1') rP1();
-        if(active === 'p4') rP4();
-        // Diğer renderlar buraya...
-    };
-
-    function prevM() { S.currentMonth = addM(curM(), -1); rAll(); }
-    function nextM() { S.currentMonth = addM(curM(), 1); rAll(); }
-
-    function rP1() {
-        const m = curM();
-        let h = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-        h += `<div style="padding:20px; text-align:center; background:var(--bg2); border-radius:var(--r)">
-                <div style="font-size:12px; color:var(--t2)">KART BORÇLARI TOPLAMI</div>
-                <div style="font-size:32px; font-weight:700; color:var(--R2); margin-top:5px">
-                    ${fmt((S.txns||[]).filter(t=>t.odemeAy===m).reduce((s,t)=>s+t.tutar,0))}
-                </div>
-              </div>`;
-        document.getElementById('p1').innerHTML = h;
-    }
-</script>
-</body>
-</html>
+        <button class="tb" onclick="gT(5,this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="
