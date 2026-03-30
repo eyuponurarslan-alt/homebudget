@@ -405,22 +405,29 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── MOTOR VE İLK 3 SAYFA (V5.1) ── */
+/* ══════════════════════════════════════════════════════════════
+   MALİ DİSİPLİN VE KART TAKİP SİSTEMİ (V7 - FULL PAKET)
+   ══════════════════════════════════════════════════════════════ */
 
+// --- HESAPLAMA MOTORU ---
 const H = {
   duzenli: (m) => (S.duzenli || []).reduce((s, d) => s + (parseFloat((d.aylar || {})[m]) || 0), 0),
+  
   netHesap: (id, m) => {
     const d = (S.atLimitler || {})[id]?.[m] || {};
     return (parseFloat(d.limit) || 0) * (1 + (parseFloat(d.oran) || 0) / 100);
   },
+
+  // Kart Borcu: İşlemler ve Taksitleri Sayfa 5'teki kesim tarihine göre süzer
   kartBorc: (id, m) => {
-    const txn = (S.txns || []).filter(t => t.tip === 'r' && t.kartId === id && t.odemeAy === m).reduce((s, t) => s + t.tutar, 0);
+    const txn = (S.txns || []).filter(t => t.tip === 'r' && t.kartId === id && t.odemeAy === m).reduce((s, t) => s + (parseFloat(t.tutar) || 0), 0);
     const tak = (S.kartTaksit || []).filter(kt => kt.kartId === id).reduce((s, kt) => {
       const end = addM(kt.baslangicAy, kt.taksitSayisi - 1);
-      return m >= kt.baslangicAy && m <= end ? s + kt.aylikTutar : s;
+      return m >= kt.baslangicAy && m <= end ? s + (parseFloat(kt.aylikTutar) || 0) : s;
     }, 0);
     return txn + tak;
   },
+
   getDevir: (m) => {
     let cur = m; let acc = 0; let sft = 0;
     while (sft < 100) {
@@ -436,6 +443,7 @@ const H = {
   }
 };
 
+// --- SAYFA 1: ANA TABLO ---
 function rP1() {
   const m = curM(); const dev = H.getDevir(m); const dTop = H.duzenli(m);
   let h = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
@@ -448,11 +456,14 @@ function rP1() {
   };
   h += `<div class="sec-lbl">GELİRLER (Devir: ${fmt(dev)})</div>`;
   (S.gelirKalemler || []).forEach(k => h += row(k, 'g'));
-  h += `<div class="sec-lbl">LİMİTLER (KART & YATIRIM)</div>`;
-  [...(S.kartlar || []), ...(S.yatirimKalemler || [])].forEach(k => h += row(k, 'r'));
+  h += `<div class="sec-lbl">LİMİTLER (KARTLAR)</div>`;
+  (S.kartlar || []).forEach(k => h += row(k, 'r'));
+  h += `<div class="sec-lbl">YATIRIM</div>`;
+  (S.yatirimKalemler || []).forEach(k => h += row(k, 'r'));
   document.getElementById('p1').innerHTML = h;
 }
 
+// --- SAYFA 2: DÜZENLİ GİDERLER (GENİŞ KUTUCUKLU) ---
 function rP2() {
   const m = curM(); const mos = []; for(let i=-1; i<11; i++) mos.push(addM(m, i));
   let h = `<div class="ph"><div class="pt">Düzenli Giderler</div><button onclick="addDG()">+ Ekle</button></div>`;
@@ -463,7 +474,7 @@ function rP2() {
     h += `<tr><td class="sticky">${dg.ad} <span onclick="delDG('${dg.id}')" style="color:red;cursor:pointer">×</span></td>`;
     mos.forEach(mo => {
       const v = (dg.aylar || {})[mo] || '';
-      h += `<td><input type="number" style="width:60px;text-align:center" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={}; S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0; sv(); rP1();"></td>`;
+      h += `<td><input type="number" style="width:80px; text-align:center; background:#333; color:white; border:none; padding:5px; border-radius:4px" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={}; S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0; sv(); rP1();"></td>`;
     });
     h += `</tr>`;
   });
@@ -471,234 +482,78 @@ function rP2() {
   document.getElementById('p2').innerHTML = h;
 }
 
+// --- SAYFA 3: KARTLAR ---
 function rP3() {
   const m = curM();
-  let h = `<div class="ph"><div class="pt">Kart Harcama Takibi</div><button onclick="addKrt()">+ Yeni Kart</button></div>`;
+  let h = `<div class="ph"><div class="pt">Kart Takibi</div><button onclick="addKrt()">+ Kart</button></div>`;
   (S.kartlar || []).forEach(k => {
     const plan = H.netHesap(k.id, m);
-    const gercek = H.kartBorc(k.id, m);
+    const borc = H.kartBorc(k.id, m);
     h += `<div class="at-row r" style="margin-bottom:10px; padding:10px; background:#222; border-radius:8px">
       <div style="display:flex; justify-content:space-between"><b>${k.ad}</b> <span onclick="delKrt('${k.id}')">🗑️</span></div>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-top:8px; font-size:0.85em">
-        <div>Plan: ${fmt(plan)}</div>
-        <div style="color:var(--R2)">Borç: ${fmt(gercek)}</div>
-        <div style="color:var(--G2)">Kalan: ${fmt(plan-gercek)}</div>
+        <div>Limit: ${fmt(plan)}</div>
+        <div style="color:var(--R2)">Borç: ${fmt(borc)}</div>
+        <div style="color:var(--G2)">Kalan: ${fmt(plan-borc)}</div>
       </div>
     </div>`;
   });
   document.getElementById('p3').innerHTML = h;
 }
 
+// --- SAYFA 4: İŞLEMLER (LİSTELENEBİLİR VE SİLİNEBİLİR) ---
+function rP4() {
+  const m = curM();
+  let h = `<div class="ph"><div class="pt">İşlemler</div><button onclick="openAddTxn()">+ Harcama</button></div>`;
+  const ayTxns = (S.txns || []).filter(t => t.odemeAy === m);
+  h += `<div class="sec-lbl">Bu Ayın Harcamaları</div>`;
+  if(!ayTxns.length) h += `<p style="padding:10px; color:#666">İşlem yok.</p>`;
+  ayTxns.forEach(t => {
+    const kName = (S.kartlar || []).find(k => k.id === t.kartId)?.ad || 'Nakit';
+    h += `<div class="at-row" style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #333">
+      <div><b>${t.ad}</b><br><small>${kName}</small></div>
+      <div style="text-align:right"><b style="color:var(--R2)">${fmt(t.tutar)}</b><br><button onclick="delTxn('${t.id}')" style="background:none;border:none;color:red;font-size:0.8em;cursor:pointer">Sil</button></div>
+    </div>`;
+  });
+  document.getElementById('p4').innerHTML = h;
+}
+
+// --- SAYFA 5: AYARLAR (HESAP KESİM & GENEL) ---
+function rP5() {
+  let h = `<div class="ph"><div class="pt">Ayarlar</div></div>`;
+  h += `<div class="sec-lbl">Kart Hesap Kesim Günleri</div>`;
+  (S.kartlar || []).forEach(k => {
+    const gun = S.kesimGunleri?.[k.id] || 1;
+    h += `<div class="at-row" style="display:flex; justify-content:space-between; padding:10px; align-items:center">
+      <span>${k.ad}</span>
+      <input type="number" value="${gun}" min="1" max="31" style="width:50px; text-align:center" onchange="setKesim('${k.id}', this.value)">
+    </div>`;
+  });
+  h += `<div style="margin-top:30px; padding:10px;"><button class="bs r" onclick="if(confirm('TÜM VERİLER SİLİNECEK! Emin misiniz?')){localStorage.clear();location.reload();}">Verileri Sıfırla</button></div>`;
+  document.getElementById('p5').innerHTML = h;
+}
+
+// --- YARDIMCI FONKSİYONLAR ---
+function setKesim(id, gun) { if(!S.kesimGunleri) S.kesimGunleri = {}; S.kesimGunleri[id] = parseInt(gun); sv(); }
+function openAddTxn() {
+  const ad = prompt("Harcama:"); if(!ad) return;
+  const tutar = parseFloat(prompt("Tutar:")); if(isNaN(tutar)) return;
+  const krtId = prompt("Kart ID (Veya boş bırakın):");
+  if(!S.txns) S.txns = [];
+  S.txns.push({ id: 't'+Date.now(), ad, tutar, kartId: krtId, odemeAy: curM(), tip: 'r' });
+  sv(); gT(4);
+}
+function delTxn(id) { if(confirm("Sil?")) { S.txns = S.txns.filter(t => t.id !== id); sv(); rP4(); } }
 function addDG(){const a=prompt('Ad:');if(a){if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad:a,aylar:{}});sv();rP2();}}
 function delDG(id){if(confirm('Sil?')){S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rP1();rP2();}}
 function addKrt(){const a=prompt('Ad:');if(a){if(!S.kartlar)S.kartlar=[];S.kartlar.push({id:'k'+Date.now(),ad:a});sv();rP3();rP1();}}
 function delKrt(id){if(confirm('Sil?')){S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP3();rP1();}}
 
-/* ── SAYFA 3 BURADA BİTİYOR, ALTTAKİ rP4'E DOKUNMA ── */
-  
-/* ══════════════════════════════════════
-   SAYFA 4 — İŞLEMLER
-══════════════════════════════════════ */
-function rP4(){
-  const m=curM();
-  const fK=document.getElementById('f4k')?.value||'';
-  const fA=document.getElementById('f4a')?.value||m;
-  const sorted=[...(S.txns||[])].sort((a,b)=>b.tarih.localeCompare(a.tarih));
-  const fil=sorted.filter(t=>(!fK||t.kartId===fK)&&t.tarih.startsWith(fA));
-  const months=[...new Set((S.txns||[]).map(t=>t.tarih.slice(0,7)))].sort().reverse();
-  if(!months.includes(m))months.unshift(m);
-  const kOpts=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
-  const aG=fil.filter(t=>t.tip==='g').reduce((s,t)=>s+t.tutar,0);
-  const aR=fil.filter(t=>t.tip==='r').reduce((s,t)=>s+t.tutar,0);
-
-  let html=`<div class="ph"><div class="pt">İşlemler</div></div>`;
-  html+=`<div style="display:flex;gap:8px;margin-bottom:12px">
-    <select id="f4k" onchange="rP4()" style="flex:1;padding:9px 12px;font-size:13px"><option value="">Tüm Kartlar</option>${kOpts}</select>
-    <select id="f4a" onchange="rP4()" style="flex:1;padding:9px 12px;font-size:13px">${months.map(mm=>`<option value="${mm}"${mm===m?' selected':''}>${mm}</option>`).join('')}</select>
-  </div>
-  <div class="sc2">
-    <div class="sc" style="border-left:2px solid var(--G)"><div class="sc-l">Gelir</div><div class="sc-v pos">${fmt(aG)}</div></div>
-    <div class="sc" style="border-left:2px solid var(--R)"><div class="sc-l">Gider</div><div class="sc-v neg">${fmt(aR)}</div></div>
-  </div>`;
-
-  if(!fil.length)html+=`<div class="empty">İşlem yok.<br>+ butonu ile ekle.</div>`;
-  fil.forEach(t=>{
-    const k=(S.kartlar||[]).find(k=>k.id===t.kartId)||(S.gelirKalemler||[]).find(k=>k.id===t.kartId);
-    const isR=t.tip==='r';
-    html+=`<div class="txr">
-      <div class="txic" style="background:${isR?'var(--rBg)':'var(--gBg)'}">${isR?'💳':'💰'}</div>
-      <div class="txm"><div class="txn">${t.kat}${t.not?' · '+t.not:''}</div>
-      <div class="txs">${t.tarih} · ${k?k.ad:'?'}${isR&&t.odemeAy?` · Ödeme: ${t.odemeAy}`:''}</div></div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <div class="txa" style="color:${isR?'var(--R2)':'var(--G2)'}">${isR?'−':'+'}${fmt(t.tutar)}</div>
-        <button class="txdel" onclick="delT(${t.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
-      </div>
-    </div>`;
-  });
-  html+=`<button onclick="expCSV()" style="margin-top:10px;width:100%;padding:11px;border-radius:var(--rs);border:1px solid var(--b2);background:none;color:var(--t2);font-family:var(--ff);font-size:13px;cursor:pointer">CSV İndir</button>`;
-  document.getElementById('p4').innerHTML=html;
+function gT(p) { 
+  curP = p; 
+  document.querySelectorAll('.page').forEach(e => e.classList.remove('active'));
+  document.getElementById('p'+p).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+  if(document.querySelectorAll('.nav-item')[p-1]) document.querySelectorAll('.nav-item')[p-1].classList.add('active');
+  if(p==1) rP1(); if(p==2) rP2(); if(p==3) rP3(); if(p==4) rP4(); if(p==5) rP5();
 }
-function delT(id){S.txns=S.txns.filter(t=>t.id!==id);sv();rAll();}
-function expCSV(){
-  const h='Tarih,Tip,Kart/Kalem,Ödeme Ayı,Kategori,Not,Tutar\n';
-  const b=(S.txns||[]).sort((a,b2)=>b2.tarih.localeCompare(a.tarih)).map(t=>{
-    const k=(S.kartlar||[]).find(k=>k.id===t.kartId)||(S.gelirKalemler||[]).find(k=>k.id===t.kartId);
-    return`${t.tarih},${t.tip==='r'?'Gider':'Gelir'},"${k?k.ad:'?'}","${t.odemeAy||''}","${t.kat||''}","${t.not||''}",${t.tutar}`;
-  }).join('\n');
-  const blob=new Blob(['\ufeff'+h+b],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='islemler.csv';a.click();URL.revokeObjectURL(url);
-}
-
-/* ══════════════════════════════════════
-   SAYFA 5 — AYARLAR
-══════════════════════════════════════ */
-function rP5(){
-  let html=`<div class="ph"><div class="pt">Ayarlar</div><button class="bs d" onclick="doLogout()">Çıkış</button></div>`;
-
-  html+=`<div class="sec-lbl">Kart Bilgileri</div>`;
-  (S.kartlar||[]).forEach((k,i)=>{
-    html+=`<div style="background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:12px 14px;margin-bottom:6px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <input value="${k.ad}" style="flex:1;background:transparent;border:none;font-size:14px;font-weight:600;color:var(--t);padding:0;outline:none" onchange="S.kartlar[${i}].ad=this.value;sv()">
-        <button onclick="delKart('${k.id}')" class="bs d" style="padding:4px 10px;font-size:11px">Sil</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:12px;color:var(--t2)">Ekstre kesim günü:</span>
-        <input type="number" value="${k.kesim}" min="1" max="31" style="width:64px;padding:6px 8px;font-size:14px;text-align:center;font-family:var(--fm)"
-          onchange="S.kartlar[${i}].kesim=parseInt(this.value)||1;sv()">
-        <span style="font-size:12px;color:var(--t3)">her ay</span>
-      </div>
-    </div>`;
-  });
-  html+=`<button class="bs a" onclick="addKart()" style="margin-bottom:18px">+ Kart Ekle</button>`;
-
-  html+=`<div class="sec-lbl">Gelir Kalemleri</div>`;
-  (S.gelirKalemler||[]).forEach((k,i)=>{
-    html+=`<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;background:var(--bg2);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px">
-      <input value="${k.ad}" style="flex:1;background:transparent;border:none;font-size:14px;font-weight:500;color:var(--t);outline:none" onchange="S.gelirKalemler[${i}].ad=this.value;sv()">
-      ${i>0?`<button onclick="S.gelirKalemler.splice(${i},1);sv();rP5()" class="bs d" style="padding:4px 10px;font-size:11px">Sil</button>`:''}
-    </div>`;
-  });
-  html+=`<button class="bs a" onclick="S.gelirKalemler.push({id:'g'+Date.now(),ad:'Yeni Gelir'});sv();rP5()" style="margin-bottom:18px">+ Gelir Kalemi</button>`;
-
-  html+=`<div class="sec-lbl">Yatırım Kalemleri</div>`;
-  (S.yatirimKalemler||[]).forEach((k,i)=>{
-    html+=`<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;background:var(--bg2);border:1px solid var(--b);border-radius:var(--rs);margin-bottom:5px">
-      <input value="${k.ad}" style="flex:1;background:transparent;border:none;font-size:14px;font-weight:500;color:var(--t);outline:none" onchange="S.yatirimKalemler[${i}].ad=this.value;sv()">
-      <button onclick="S.yatirimKalemler.splice(${i},1);sv();rP5()" class="bs d" style="padding:4px 10px;font-size:11px">Sil</button>
-    </div>`;
-  });
-  html+=`<button class="bs a" onclick="S.yatirimKalemler.push({id:'y'+Date.now(),ad:'Yeni Yatırım'});sv();rP5()">+ Yatırım Kalemi</button>`;
-
-  document.getElementById('p5').innerHTML=html;
-}
-function addKart(){
-  const ad=prompt('Kart adı:');if(!ad)return;
-  const kesim=parseInt(prompt('Ekstre kesim günü (1-31):',1)||1);
-  S.kartlar.push({id:'k'+Date.now(),ad,kesim});sv();rP5();rP1();
-}
-function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP5();rP1();}
-
-/* ══════════════════════════════════════
-   QUICK MODAL — 3 tip: Kart Harcaması / Taksit / Gelir
-══════════════════════════════════════ */
-let qTip='r';
-function openQ(){
-  document.getElementById('qd').value=today();
-  document.getElementById('qt').value='';
-  document.getElementById('qn').value='';
-  document.getElementById('qmsg').textContent='';
-  document.getElementById('en').style.display='none';
-  document.getElementById('qtbas').value=curM();
-  setQT('r');
-  document.getElementById('qm').classList.add('open');
-  setTimeout(()=>document.getElementById('qt').focus(),300);
-}
-function closeQ(e){if(e&&e.target!==document.getElementById('qm'))return;document.getElementById('qm').classList.remove('open');}
-
-function setQT(t){
-  qTip=t;
-  ['r','t','g'].forEach(x=>{
-    document.getElementById('qb'+x).className=t===x?`on-${t}`:'';
-  });
-  document.getElementById('qform-r').style.display=t==='r'?'block':'none';
-  document.getElementById('qform-t').style.display=t==='t'?'block':'none';
-  document.getElementById('qform-g').style.display=t==='g'?'block':'none';
-
-  if(t==='r'){
-    document.getElementById('qk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad} (kesim:${k.kesim})</option>`).join('');
-    document.getElementById('qc').innerHTML=CATS_R.map(c=>`<option>${c}</option>`).join('');
-  } else if(t==='t'){
-    document.getElementById('qtk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad} (kesim:${k.kesim})</option>`).join('');
-    document.getElementById('qtcat').innerHTML=CATS_T.map(c=>`<option>${c}</option>`).join('');
-  } else {
-    document.getElementById('qgk').innerHTML=(S.gelirKalemler||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
-  }
-}
-
-function updEN(){
-  const tarih=document.getElementById('qd').value;
-  const kid=document.getElementById('qk').value;
-  const en=document.getElementById('en');
-  if(!tarih){en.style.display='none';return;}
-  const kart=(S.kartlar||[]).find(k=>k.id===kid);
-  if(!kart){en.style.display='none';return;}
-  const note=ekstreNotTxt(tarih,kart);
-  if(note){en.textContent='📅 '+note;en.style.display='block';}
-  else{en.style.display='none';}
-}
-
-function saveQ(){
-  const msg=document.getElementById('qmsg');
-  msg.textContent='';
-  if(qTip==='r'){
-    const tarih=document.getElementById('qd').value;
-    const tutar=parseFloat(document.getElementById('qt').value||0);
-    const kartId=document.getElementById('qk').value;
-    const kat=document.getElementById('qc').value;
-    const not=document.getElementById('qn').value;
-    if(!tarih||!tutar){msg.textContent='Tarih ve tutar gerekli.';return;}
-    const kart=(S.kartlar||[]).find(k=>k.id===kartId);
-    const odemeAy=kart?hesaplaOdemeAy(tarih,kart.kesim):null;
-    if(!S.txns)S.txns=[];
-    S.txns.push({id:Date.now(),tarih,tip:'r',kartId,odemeAy,kat,not,tutar});
-  } else if(qTip==='t'){
-    const kartId=document.getElementById('qtk').value;
-    const ad=document.getElementById('qtad').value;
-    const aylikTutar=parseFloat(document.getElementById('qtamt').value||0);
-    const taksitSayisi=parseInt(document.getElementById('qtsay').value||1);
-    const kat=document.getElementById('qtcat').value;
-    const baslangicAy=document.getElementById('qtbas').value;
-    if(!ad||!aylikTutar||!baslangicAy){msg.textContent='Lütfen tüm alanları doldurun.';return;}
-    if(!S.kartTaksit)S.kartTaksit=[];
-    S.kartTaksit.push({id:'kt'+Date.now(),kartId,ad,kat,aylikTutar,taksitSayisi,baslangicAy});
-  } else {
-    const tarih=document.getElementById('qgd').value;
-    const tutar=parseFloat(document.getElementById('qgt').value||0);
-    const kartId=document.getElementById('qgk').value;
-    const not=document.getElementById('qgn').value;
-    if(!tarih||!tutar){msg.textContent='Tarih ve tutar gerekli.';return;}
-    if(!S.txns)S.txns=[];
-    S.txns.push({id:Date.now(),tarih,tip:'g',kartId,odemeAy:null,kat:'Gelir',not,tutar});
-  }
-  sv();rAll();
-  document.getElementById('qm').classList.remove('open');
-}
-
-/* ── NAV ── */
-function gT(n,el){
-  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tb').forEach(t=>t.classList.remove('on'));
-  document.getElementById('p'+n).classList.add('on');
-  el.classList.add('on');
-  document.getElementById('scr').scrollTop=0;
-  [rP1,rP2,rP3,rP4,rP5][n-1]();
-}
-window.rAll=function(){
-  rP1();
-  const a=document.querySelector('.pg.on')?.id;
-  if(a==='p2')rP2();else if(a==='p3')rP3();else if(a==='p4')rP4();else if(a==='p5')rP5();
-};
-</script>
-</body>
-</html>
