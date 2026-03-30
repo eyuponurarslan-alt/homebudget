@@ -405,7 +405,7 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── HESAPLAMA MOTORU (BAĞIMSIZ VE TAM) ── */
+/* ── HESAPLAMA MOTORU (TAM SÜRÜM) ── */
 
 function duzenliTop(m) {
   return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
@@ -459,7 +459,7 @@ function kartBorcOdemeAy(kartId, odemeAy) {
 function rP1() {
   const m = curM(); const devir = getDevir(m); const dTop = duzenliTop(m);
   let html = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-  html += `<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div>`;
+  html += `<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div><div class="sec-lbl">Gelirler</div>`;
   (S.gelirKalemler || []).forEach(k => {
     const l = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).limit || 0);
     const o = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).oran || 0);
@@ -476,19 +476,24 @@ function rP1() {
 ══════════════════════════════════════ */
 function rP2() {
   const m = curM(); const months = []; for (let i = -1; i < 11; i++) months.push(addM(m, i));
+  const top = duzenliTop(m);
   let html = `<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
-  html += `<div class="dg-wrap"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
-  months.forEach(mo => { html += `<th>${MN[parseInt(mo.split('-')[1]) - 1]}</th>`; });
-  html += `</tr></thead><tbody>`;
-  (S.duzenli || []).forEach((dg, i) => {
-    html += `<tr><td class="sticky">${dg.ad} <button onclick="delDG('${dg.id}')">×</button></td>`;
-    months.forEach(mo => {
-      const v = (dg.aylar || {})[mo] || '';
-      html += `<td><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
+  html += `<div class="dg-sum">Bu Ay Toplam: <strong>${fmt(top)}</strong></div>`;
+  if (!(S.duzenli || []).length) { html += `<div class="empty">Henüz düzenli gider yok.</div>`; }
+  else {
+    html += `<div class="dg-wrap"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
+    months.forEach(mo => { html += `<th>${MN[parseInt(mo.split('-')[1]) - 1]}</th>`; });
+    html += `</tr></thead><tbody>`;
+    (S.duzenli || []).forEach((dg, i) => {
+      html += `<tr><td class="sticky">${dg.ad} <button onclick="delDG('${dg.id}')">×</button></td>`;
+      months.forEach(mo => {
+        const v = (dg.aylar || {})[mo] || '';
+        html += `<td><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
+      });
+      html += `</tr>`;
     });
-    html += `</tr>`;
-  });
-  html += `</tbody></table></div>`;
+    html += `</tbody></table></div>`;
+  }
   document.getElementById('p2').innerHTML = html;
 }
 
@@ -501,7 +506,11 @@ function rP3() {
   (S.kartlar || []).forEach(k => {
     const borc = kartBorcOdemeAy(k.id, m);
     const nl = netLim(k.id, m);
-    html += `<div class="card-box"><h3>${k.ad}</h3><p>Borç: ${fmt(borc)} / Limit: ${fmt(nl)}</p></div>`;
+    html += `<div class="at-row r"><div class="at-grid">
+      <div class="at-cell"><div class="at-ad">${k.ad}</div><div class="at-sub">Borç: ${fmt(borc)}</div></div>
+      <div class="at-cell" style="grid-column:span 2; text-align:right; padding-right:10px; color:var(--t3)">Limit:</div>
+      <div class="at-cell"><div class="av neg">${fmt(nl)}</div></div>
+    </div></div>`;
   });
   document.getElementById('p3').innerHTML = html;
 }
