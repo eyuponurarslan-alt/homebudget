@@ -406,9 +406,10 @@ function setOr(id,m,v){
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
 /* ══════════════════════════════════════════════════════════════
-   HESAPLAMA MOTORU VE SAYFA RENDERLARI (V9 - NAV FIX)
+   TAM ENTEGRE MALİ SİSTEM - RECOVERY MOD (V10)
    ══════════════════════════════════════════════════════════════ */
 
+// 1. HESAPLAMA MOTORU
 const H = {
   duzenli: (m) => (S.duzenli || []).reduce((s, d) => s + (parseFloat((d.aylar || {})[m]) || 0), 0),
   netHesap: (id, m) => {
@@ -438,6 +439,7 @@ const H = {
   }
 };
 
+// 2. SAYFA RENDER FONKSİYONLARI
 function rP1() {
   const m = curM(); const dev = H.getDevir(m); const dTop = H.duzenli(m);
   let h = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
@@ -520,9 +522,7 @@ function rP5() {
   document.getElementById('p5').innerHTML = h;
 }
 
-/* ══════════════════════════════════════
-   QUICK MODAL (3 Tip: Kart / Taksit / Gelir)
-══════════════════════════════════════ */
+// 3. QUICK MODAL VE DİĞER FONKSİYONLAR
 let qTip='r';
 function openQ(){
   document.getElementById('qd').value=today();
@@ -533,7 +533,6 @@ function openQ(){
   document.getElementById('qtbas').value=curM();
   setQT('r');
   document.getElementById('qm').classList.add('open');
-  setTimeout(()=>document.getElementById('qt').focus(),300);
 }
 function closeQ(e){if(e&&e.target!==document.getElementById('qm'))return;document.getElementById('qm').classList.remove('open');}
 
@@ -543,68 +542,33 @@ function setQT(t){
   document.getElementById('qform-r').style.display=t==='r'?'block':'none';
   document.getElementById('qform-t').style.display=t==='t'?'block':'none';
   document.getElementById('qform-g').style.display=t==='g'?'block':'none';
-
   if(t==='r'){
-    document.getElementById('qk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad} (kesim:${k.kesim})</option>`).join('');
+    document.getElementById('qk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
     document.getElementById('qc').innerHTML=CATS_R.map(c=>`<option>${c}</option>`).join('');
   } else if(t==='t'){
-    document.getElementById('qtk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad} (kesim:${k.kesim})</option>`).join('');
+    document.getElementById('qtk').innerHTML=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
     document.getElementById('qtcat').innerHTML=CATS_T.map(c=>`<option>${c}</option>`).join('');
   } else {
     document.getElementById('qgk').innerHTML=(S.gelirKalemler||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
   }
 }
 
-function updEN(){
-  const tarih=document.getElementById('qd').value;
-  const kid=document.getElementById('qk').value;
-  const en=document.getElementById('en');
-  if(!tarih){en.style.display='none';return;}
-  const kart=(S.kartlar||[]).find(k=>k.id===kid);
-  if(!kart){en.style.display='none';return;}
-  const note=ekstreNotTxt(tarih,kart);
-  if(note){en.textContent='📅 '+note;en.style.display='block';}
-  else{en.style.display='none';}
-}
-
 function saveQ(){
-  const msg=document.getElementById('qmsg');
-  msg.textContent='';
   if(qTip==='r'){
     const tarih=document.getElementById('qd').value;
     const tutar=parseFloat(document.getElementById('qt').value||0);
     const kartId=document.getElementById('qk').value;
-    const kat=document.getElementById('qc').value;
-    const not=document.getElementById('qn').value;
-    if(!tarih||!tutar){msg.textContent='Tarih ve tutar gerekli.';return;}
-    const kart=(S.kartlar||[]).find(k=>k.id===kartId);
-    const odemeAy=kart?hesaplaOdemeAy(tarih,kart.kesim):null;
+    const odemeAy=hesaplaOdemeAy(tarih, (S.kartlar.find(k=>k.id===kartId)||{}).kesim || 1);
     if(!S.txns)S.txns=[];
-    S.txns.push({id:Date.now(),tarih,tip:'r',kartId,odemeAy,kat,not,tutar});
+    S.txns.push({id:Date.now(),tarih,tip:'r',kartId,odemeAy,tutar,not:document.getElementById('qn').value});
   } else if(qTip==='t'){
-    const kartId=document.getElementById('qtk').value;
-    const ad=document.getElementById('qtad').value;
-    const aylikTutar=parseFloat(document.getElementById('qtamt').value||0);
-    const taksitSayisi=parseInt(document.getElementById('qtsay').value||1);
-    const kat=document.getElementById('qtcat').value;
-    const baslangicAy=document.getElementById('qtbas').value;
-    if(!ad||!aylikTutar||!baslangicAy){msg.textContent='Lütfen tüm alanları doldurun.';return;}
     if(!S.kartTaksit)S.kartTaksit=[];
-    S.kartTaksit.push({id:'kt'+Date.now(),kartId,ad,kat,aylikTutar,taksitSayisi,baslangicAy});
-  } else {
-    const tarih=document.getElementById('qgd').value;
-    const tutar=parseFloat(document.getElementById('qgt').value||0);
-    const kartId=document.getElementById('qgk').value;
-    const not=document.getElementById('qgn').value;
-    if(!tarih||!tutar){msg.textContent='Tarih ve tutar gerekli.';return;}
-    if(!S.txns)S.txns=[];
-    S.txns.push({id:Date.now(),tarih,tip:'g',kartId,odemeAy:null,kat:'Gelir',not,tutar});
+    S.kartTaksit.push({id:'kt'+Date.now(),kartId:document.getElementById('qtk').value,ad:document.getElementById('qtad').value,aylikTutar:parseFloat(document.getElementById('qtamt').value),taksitSayisi:parseInt(document.getElementById('qtsay').value),baslangicAy:document.getElementById('qtbas').value});
   }
-  sv(); rAll();
-  document.getElementById('qm').classList.remove('open');
+  sv(); rAll(); document.getElementById('qm').classList.remove('open');
 }
 
-/* ── NAV ── */
+// 4. NAVİGASYON (SENİN ORİJİNAL YAPIN)
 function gT(n,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tb').forEach(t=>t.classList.remove('on'));
@@ -620,16 +584,13 @@ window.rAll=function(){
   if(a==='p2')rP2(); else if(a==='p3')rP3(); else if(a==='p4')rP4(); else if(a==='p5')rP5();
 };
 
-function delTxn(id) { if(confirm("Sil?")) { S.txns = S.txns.filter(t => (t.id||t.tarih) != id); sv(); rAll(); } }
-function addDG(){const a=prompt('Ad:');if(a){if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad:a,aylar:{}});sv();rP2();}}
+function delTxn(id){if(confirm("Sil?")){S.txns=S.txns.filter(t=>(t.id||t.tarih)!=id);sv();rAll();}}
+function addDG(){const a=prompt('Ad:');if(a){if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad:a,aylar:{}});sv();rAll();}}
 function delDG(id){if(confirm('Sil?')){S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rAll();}}
 function addKrt(){const a=prompt('Ad:');if(a){if(!S.kartlar)S.kartlar=[];S.kartlar.push({id:'k'+Date.now(),ad:a,kesim:1});sv();rAll();}}
 function delKrt(id){if(confirm('Sil?')){S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rAll();}}
 
-// Sayfa ilk yüklendiğinde çalıştır
-document.addEventListener("DOMContentLoaded", function() {
-    rAll();
-});
+document.addEventListener("DOMContentLoaded", () => rAll());
 </script>
 </body>
 </html>
