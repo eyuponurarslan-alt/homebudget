@@ -456,31 +456,7 @@ function getDevir(m) {
   }
   return totalAccumulated;
 }
-/* ── HESAPLAMA MOTORU BİTİŞ ── */
-function hesaplaOdemeAy(tarihStr, kesimGun){
-  const d=new Date(tarihStr);
-  const gun=d.getDate();
-  const m=d.getMonth()+1;
-  const y=d.getFullYear();
-  // Bu ayın ekstresi mi sonraki ayın mı?
-  let ekstreAy=m, ekstreYil=y;
-  if(gun>kesimGun){ekstreAy++;}  // sonraki ayın ekstresi
-  if(ekstreAy>12){ekstreAy=1;ekstreYil++;}
-  // Ekstre kesildikten sonra ödeme = bir sonraki ay
-  let odemeAy=ekstreAy+1, odemeYil=ekstreYil;
-  if(odemeAy>12){odemeAy=1;odemeYil++;}
-  return`${odemeYil}-${String(odemeAy).padStart(2,'0')}`;
-}
-function ekstreNotTxt(tarihStr,kart){
-  if(!tarihStr||!kart)return null;
-  const gun=new Date(tarihStr).getDate();
-  const odemeAy=hesaplaOdemeAy(tarihStr,kart.kesim);
-  const[,mo]=odemeAy.split('-').map(Number);
-  const hangiEkstre=gun<=kart.kesim?`${gun}≤${kart.kesim} → bu ayın ekstresi`:`${gun}>${kart.kesim} → sonraki ayın ekstresi`;
-  return`${hangiEkstre} → ${MN[mo-1]} ayında ödenir`;
-}
-
-/* ── KART HARCAMA TOPLAMI (gerçek işlemler) ── */
+/* ── HESAPLAMA MOTORU BİTTİ ── */
 function kartBorcOdemeAy(kartId, odemeAy){
   const txn=(S.txns||[]).filter(t=>t.tip==='r'&&t.kartId===kartId&&t.odemeAy===odemeAy).reduce((s,t)=>s+t.tutar,0);
   const tak=(S.kartTaksit||[]).filter(kt=>kt.kartId===kartId).reduce((s,kt)=>{
