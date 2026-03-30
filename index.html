@@ -405,164 +405,110 @@ function setOr(id,m,v){
 }
 function netLim(id,m){return getLim(id,m)*(1+getOr(id,m)/100);}
 
-/* ── HESAPLAMA MOTORU (GÜVENLİ VE BAĞIMSIZ) ── */
+/* ── HESAPLAMA MOTORU (BAĞIMSIZ VE TAM) ── */
 
-function getDevir(m) {
-  // İç Fonksiyon 1: Düzenli Giderleri Hesapla
-  const _dTop = (mo) => (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[mo] || 0), 0);
-  
-  // İç Fonksiyon 2: Net Limit Hesapla
-  const _nLim = (id, mo) => {
-    const l = parseFloat(((S.atLimitler[id] || {})[mo] || {}).limit || 0);
-    const o = parseFloat(((S.atLimitler[id] || {})[mo] || {}).oran || 0);
-    return l * (1 + o / 100);
-  };
-
-  // İç Fonksiyon 3: Gelir Toplamı Hesapla
-  const _gTop = (mo) => {
-    const dt = _dTop(mo);
-    return (S.gelirKalemler || []).reduce((s, k) => {
-      const nl = _nLim(k.id, mo);
-      return s + (k.id === 'g1' ? nl - dt : nl);
-    }, 0);
-  };
-
-  // İç Fonksiyon 4: Gider Toplamı Hesapla
-  const _giTop = (mo) => {
-    const krt = (S.kartlar || []).reduce((s, k) => s + _nLim(k.id, mo), 0);
-    const yat = (S.yatirimKalemler || []).reduce((s, k) => s + _nLim(k.id, mo), 0);
-    return krt + yat;
-  };
-
-  let currentMonth = m;
-  let totalAccumulated = 0;
-  let safetyCounter = 0;
-
-  while (safetyCounter < 100) {
-    const stored = (S.devir || {})[currentMonth];
-    if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) {
-      return parseFloat(stored) + totalAccumulated;
-    }
-    const prevMonth = addM(currentMonth, -1);
-    if (prevMonth === currentMonth || currentMonth < "2024-01") break;
-
-    totalAccumulated += (_gTop(prevMonth) - _giTop(prevMonth));
-    currentMonth = prevMonth;
-    safetyCounter++;
-  }
-  return totalAccumulated;
+function duzenliTop(m) {
+  return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0);
 }
 
-// Yardımcı Global Fonksiyonlar (Arayüz için lazım)
-function duzenliTop(m) { return (S.duzenli || []).reduce((s, d) => s + parseFloat((d.aylar || {})[m] || 0), 0); }
-function netLim(id, m) { 
+function netLim(id, m) {
   const l = parseFloat(((S.atLimitler[id] || {})[m] || {}).limit || 0);
   const o = parseFloat(((S.atLimitler[id] || {})[m] || {}).oran || 0);
-  return l * (1 + o / 100); 
+  return l * (1 + o / 100);
 }
-function atGelirTopla(m) { return (S.gelirKalemler || []).reduce((s, k) => s + (k.id === 'g1' ? netLim(k.id, m) - duzenliTop(m) : netLim(k.id, m)), 0); }
-function atGiderTopla(m) { return (S.kartlar || []).reduce((s, k) => s + netLim(k.id, m), 0) + (S.yatirimKalemler || []).reduce((s, k) => s + netLim(k.id, m), 0); }
+
+function atGelirTopla(m) {
+  const dTop = duzenliTop(m);
+  return (S.gelirKalemler || []).reduce((s, k) => {
+    const nl = netLim(k.id, m);
+    return s + (k.id === 'g1' ? nl - dTop : nl);
+  }, 0);
+}
+
+function atGiderTopla(m) {
+  const kartlar = (S.kartlar || []).reduce((s, k) => s + netLim(k.id, m), 0);
+  const yat = (S.yatirimKalemler || []).reduce((s, k) => s + netLim(k.id, m), 0);
+  return kartlar + yat;
+}
+
+function getDevir(m) {
+  let cur = m; let total = 0; let safety = 0;
+  while (safety < 100) {
+    const stored = (S.devir || {})[cur];
+    if (stored !== undefined && stored !== null && stored !== '' && !isNaN(stored)) return parseFloat(stored) + total;
+    const prev = addM(cur, -1);
+    if (prev === cur || cur < "2024-01") break;
+    total += (atGelirTopla(prev) - atGiderTopla(prev));
+    cur = prev; safety++;
+  }
+  return total;
+}
+
+function kartBorcOdemeAy(kartId, odemeAy) {
+  const txn = (S.txns || []).filter(t => t.tip === 'r' && t.kartId === kartId && t.odemeAy === odemeAy).reduce((s, t) => s + t.tutar, 0);
+  const tak = (S.kartTaksit || []).filter(kt => kt.kartId === kartId).reduce((s, kt) => {
+    const end = addM(kt.baslangicAy, kt.taksitSayisi - 1);
+    return odemeAy >= kt.baslangicAy && odemeAy <= end ? s + kt.aylikTutar : s;
+  }, 0);
+  return txn + tak;
+}
 
 /* ══════════════════════════════════════
    SAYFA 1 — ANA TABLO
 ══════════════════════════════════════ */
 function rP1() {
-  const m = curM();
-  const devir = getDevir(m);
-  const dTop = duzenliTop(m);
+  const m = curM(); const devir = getDevir(m); const dTop = duzenliTop(m);
   let html = `<div class="mnav"><button onclick="prevM()">‹</button><div class="mname">${mLbl(m)}</div><button onclick="nextM()">›</button></div>`;
-  
-  html += `<div class="sec-lbl">Gelirler</div>`;
+  html += `<div class="at-hdr"><span>Kalem</span><span>Limit</span><span>Oran%</span><span>Net</span></div>`;
   (S.gelirKalemler || []).forEach(k => {
     const l = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).limit || 0);
     const o = parseFloat(((S.atLimitler[k.id] || {})[m] || {}).oran || 0);
-    const nl = l * (1 + o / 100);
-    const net = k.id === 'g1' ? nl - dTop : nl;
-    html += `<div class="at-row g"><div class="at-grid">
-      <div class="at-cell"><div class="at-ad">${k.ad}</div></div>
-      <div class="at-cell"><input class="ni" type="number" value="${l || ''}" onchange="setLim('${k.id}','${m}',this.value)"></div>
-      <div class="at-cell"><div class="av">${fmt(net)}</div></div>
-    </div></div>`;
+    const nl = l * (1 + o / 100); const net = k.id === 'g1' ? nl - dTop : nl;
+    html += `<div class="at-row g"><div class="at-grid"><div class="at-cell"><div class="at-ad">${k.ad}</div></div><div class="at-cell"><input class="ni" type="number" value="${l || ''}" onchange="setLim('${k.id}','${m}',this.value)"></div><div class="at-cell"><input class="ni" type="number" value="${o || ''}" onchange="setOr('${k.id}','${m}',this.value)"></div><div class="at-cell"><div class="av">${fmt(net)}</div></div></div></div>`;
   });
-
-  const tG = atGelirTopla(m) + devir;
-  const tGi = atGiderTopla(m);
-  const kalan = tG - tGi;
-
-  html += `<div class="ozet">
-    <div class="oz-row"><span>Kalan:</span><span style="color:${kalan >= 0 ? 'var(--G2)' : 'var(--R2)'}">${fmt(kalan)}</span></div>
-  </div>`;
+  const tG = atGelirTopla(m) + devir; const tGi = atGiderTopla(m); const kalan = tG - tGi;
+  html += `<div class="ozet"><div class="oz-row"><span>Kalan:</span><span style="color:${kalan >= 0 ? 'var(--G2)' : 'var(--R2)'}">${fmt(kalan)}</span></div></div>`;
   document.getElementById('p1').innerHTML = html;
 }
 
-function rP2() { document.getElementById('p2').innerHTML = '<div class="empty">Düzenli Giderler Sekmesi.</div>'; }
-  
-  /* ══════════════════════════════════════
-   SAYFA 3 — KARTLAR
-   Sadece gerçek harcamalar + taksitler gösterilir
-   Limitlerden bağımsız izleme
+/* ══════════════════════════════════════
+   SAYFA 2 — DÜZENLİ GİDERLER
 ══════════════════════════════════════ */
-function rP3(){
-  const m=curM();
-  let html=`<div class="ph"><div class="pt">Kartlar — ${mLbl(m)}</div></div>`;
-  html+=`<div class="info">
-    <strong>Ekstre mantığı:</strong> Harcama tarihi ≤ kesim günü → bu ayın ekstresi → <em>bir sonraki ay</em> ödenir. Harcama tarihi > kesim günü → sonraki ayın ekstresi → <em>iki ay sonra</em> ödenir.
-  </div>`;
-
-  (S.kartlar||[]).forEach(k=>{
-    const limit=netLim(k.id,m); // Ana tablo limiti (referans için)
-    const borc=kartBorcOdemeAy(k.id,m);
-    const kalan=limit-borc;
-    const pct=limit>0?Math.min(100,Math.round(borc/limit*100)):0;
-    const pbCol=pct>90?'var(--R)':pct>70?'var(--A)':'var(--G)';
-
-    const ayIslemler=(S.txns||[]).filter(t=>t.tip==='r'&&t.kartId===k.id&&t.odemeAy===m);
-    const ayTaksitler=(S.kartTaksit||[]).filter(kt=>kt.kartId===k.id&&kt.baslangicAy<=m&&addM(kt.baslangicAy,kt.taksitSayisi-1)>=m);
-
-    html+=`<div class="kp">
-      <div class="kp-h">
-        <div><div class="kp-ad">${k.ad}</div><div class="kp-info">Ekstre kesim: her ayın ${k.kesim}. günü</div></div>
-        <div class="kp-kalan">
-          <div class="kp-kval" style="color:${kalan>=0?'var(--G2)':'var(--R2)'}">${fmt(kalan)}</div>
-          <div class="kp-klbl">Bu ay kalan (limitten)</div>
-        </div>
-      </div>
-      <div class="kp-pb"><div class="kp-pbf" style="width:${pct}%;background:${pbCol}"></div></div>
-      <div class="kp-st">
-        <div class="kps"><div class="kps-l">Ana Tablo Limiti</div><div class="kps-v">${fmt(limit)}</div></div>
-        <div class="kps"><div class="kps-l">Bu Ay Borcu</div><div class="kps-v" style="color:var(--R2)">${fmt(borc)}</div></div>
-        <div class="kps"><div class="kps-l">Taksitler</div><div class="kps-v" style="color:var(--R2)">${fmt(ayTaksitler.reduce((s,kt)=>s+kt.aylikTutar,0))}</div></div>
-        <div class="kps"><div class="kps-l">Tek İşlemler</div><div class="kps-v" style="color:var(--R2)">${fmt(ayIslemler.reduce((s,t)=>s+t.tutar,0))}</div></div>
-      </div>`;
-
-    if(ayTaksitler.length||ayIslemler.length){
-      html+=`<div class="kp-list">`;
-      ayTaksitler.forEach(kt=>{
-        const no=monthDiff(kt.baslangicAy,m)+1;
-        html+=`<div class="kpi">
-          <div><div class="kpi-ad">📋 ${kt.ad}</div><div class="kpi-sub">${kt.kat} · ${no}/${kt.taksitSayisi}. taksit</div></div>
-          <div style="display:flex;align-items:center;gap:6px"><div class="kpi-v">${fmt(kt.aylikTutar)}/ay</div>
-          <button class="kpi-del" onclick="delKT('${kt.id}')">×</button></div>
-        </div>`;
-      });
-      ayIslemler.forEach(t=>{
-        html+=`<div class="kpi">
-          <div><div class="kpi-ad">💳 ${t.kat}</div><div class="kpi-sub">${t.tarih}${t.not?' · '+t.not:''}</div></div>
-          <div style="display:flex;align-items:center;gap:6px"><div class="kpi-v">${fmt(t.tutar)}</div>
-          <button class="txdel" onclick="delT(${t.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button></div>
-        </div>`;
-      });
-      html+=`</div>`;
-    } else {
-      html+=`<div style="font-size:12px;color:var(--t3);padding:6px 0;text-align:center">Bu ay henüz borç yok</div>`;
-    }
-    html+=`</div>`;
+function rP2() {
+  const m = curM(); const months = []; for (let i = -1; i < 11; i++) months.push(addM(m, i));
+  let html = `<div class="ph"><div class="pt">Düzenli Giderler</div><button class="bs a" onclick="addDG()">+ Ekle</button></div>`;
+  html += `<div class="dg-wrap"><table class="dg-tbl"><thead><tr><th class="sticky">Kalem</th>`;
+  months.forEach(mo => { html += `<th>${MN[parseInt(mo.split('-')[1]) - 1]}</th>`; });
+  html += `</tr></thead><tbody>`;
+  (S.duzenli || []).forEach((dg, i) => {
+    html += `<tr><td class="sticky">${dg.ad} <button onclick="delDG('${dg.id}')">×</button></td>`;
+    months.forEach(mo => {
+      const v = (dg.aylar || {})[mo] || '';
+      html += `<td><input type="number" value="${v}" onchange="if(!S.duzenli[${i}].aylar)S.duzenli[${i}].aylar={};S.duzenli[${i}].aylar['${mo}']=parseFloat(this.value)||0;sv();rP1();rP2()"></td>`;
+    });
+    html += `</tr>`;
   });
-
-  document.getElementById('p3').innerHTML=html;
+  html += `</tbody></table></div>`;
+  document.getElementById('p2').innerHTML = html;
 }
-function delKT(id){if(!confirm('Taksit silinsin mi?'))return;S.kartTaksit=S.kartTaksit.filter(k=>k.id!==id);sv();rP3();rAll();}
 
+/* ══════════════════════════════════════
+   SAYFA 3 — KARTLAR
+══════════════════════════════════════ */
+function rP3() {
+  const m = curM();
+  let html = `<div class="ph"><div class="pt">Kredi Kartları</div></div>`;
+  (S.kartlar || []).forEach(k => {
+    const borc = kartBorcOdemeAy(k.id, m);
+    const nl = netLim(k.id, m);
+    html += `<div class="card-box"><h3>${k.ad}</h3><p>Borç: ${fmt(borc)} / Limit: ${fmt(nl)}</p></div>`;
+  });
+  document.getElementById('p3').innerHTML = html;
+}
+
+function addDG(){const ad=prompt('Ad:');if(!ad)return;if(!S.duzenli)S.duzenli=[];S.duzenli.push({id:'dg'+Date.now(),ad,aylar:{}});sv();rP2();}
+function delDG(id){if(!confirm('Silinsin mi?'))return;S.duzenli=S.duzenli.filter(d=>d.id!==id);sv();rP2();rP1();}
+  
 /* ══════════════════════════════════════
    SAYFA 4 — İŞLEMLER
 ══════════════════════════════════════ */
