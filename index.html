@@ -978,24 +978,20 @@ function rP6() {
     if (!S.yatirimlar) S.yatirimlar = [];
     
     let html = `
-    <div class="p-3 pb-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="m-0 text-white fw-bold">Yatırım & Varlıklar</h4>
-            <button class="btn btn-warning btn-sm shadow-sm fw-bold" onclick="showYatirimForm()">
-                <i class="fas fa-plus me-1"></i> Yeni Ekle
+    <div style="padding: 20px; font-family: sans-serif; color: white;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <h2 style="margin: 0; font-size: 22px; font-weight: bold; color: #ffc107;">Yatırım & Varlıklar</h2>
+            <button onclick="showYatirimForm()" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                + Yeni Ekle
             </button>
         </div>
 
-        <div class="card bg-dark border-secondary mb-4 p-3 shadow-sm">
-            <div class="row text-center">
-                <div class="col-12">
-                    <small class="text-secondary d-block mb-1 text-uppercase" style="letter-spacing:1px">Toplam Portföy Değeri</small>
-                    <h2 class="text-warning mb-0 fw-bold" id="toplamVarlikTL">--- TL</h2>
-                </div>
-            </div>
+        <div style="background: #1e1e1e; border: 1px solid #333; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            <div style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Toplam Portföy Değeri</div>
+            <div id="toplamVarlikTL" style="font-size: 28px; font-weight: bold; color: #fff;">0.00 TL</div>
         </div>
 
-        <h6 class="text-secondary mb-3 text-uppercase small" style="letter-spacing:1px">Varlık Listesi</h6>
+        <div style="color: #888; font-size: 13px; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">VARLIK LİSTESİ</div>
         
         <div id="yatirimListContainer">
             ${renderYatirimList()}
@@ -1007,57 +1003,29 @@ function rP6() {
 // 1. LİSTELEME FONKSİYONU
 function renderYatirimList() {
     if (!S.yatirimlar || S.yatirimlar.length === 0) 
-        return `<div class="text-center text-secondary py-5">
-                    <i class="fas fa-box-open d-block mb-2 fa-2x opacity-25"></i>
-                    Henüz bir varlık eklenmedi.
-                </div>`;
+        return `<div style="text-align: center; color: #666; margin-top: 50px;">Henüz bir varlık eklenmedi.</div>`;
     
     return S.yatirimlar.map(y => {
-        if (y.tip === 'mevduat') {
-            return `
-            <div class="card bg-dark border-secondary mb-3 shadow-sm" style="border-left: 4px solid #0dcaf0 !important;">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                            <span class="badge bg-info text-dark mb-1">MEVDUAT</span>
-                            <h6 class="m-0 text-white">${y.vadeGun} Günlük Vade</h6>
-                        </div>
-                        <small class="text-secondary">${y.tarih}</small>
-                    </div>
-                    <div class="row g-0 mt-3 border-top border-secondary pt-2">
-                        <div class="col-6">
-                            <small class="text-secondary d-block small">Ana Para</small>
-                            <span class="text-white fw-bold">${Number(y.anaPara).toLocaleString('tr-TR')} TL</span>
-                        </div>
-                        <div class="col-6 text-end">
-                            <small class="text-secondary d-block small">Net Getiri</small>
-                            <span class="text-success fw-bold">+${Number(y.netGetiri).toLocaleString('tr-TR')} TL</span>
-                        </div>
-                    </div>
+        const isMevduat = y.tip === 'mevduat';
+        const accentColor = isMevduat ? '#0dcaf0' : '#ffc107'; // Mevduat mavi, Altın sarı
+        const isimler = { "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek Altın", "ata": "Ata Altın" };
+        const baslik = isMevduat ? 'Mevduat Hesabı' : (isimler[y.altTip] || 'Altın');
+
+        return `
+        <div style="background: #1a1a1a; border-left: 5px solid ${accentColor}; border-radius: 10px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            <div>
+                <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px; color: ${accentColor};">${baslik}</div>
+                <div style="font-size: 12px; color: #aaa;">
+                    ${isMevduat ? `Ana Para: ${Number(y.anaPara).toLocaleString('tr-TR')} TL` : `Miktar: ${y.miktar} ${y.altTip.includes('gr') ? 'Gram' : 'Adet'}`}
                 </div>
-            </div>`;
-        } else {
-            const isimler = { "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek Altın", "ata": "Ata Altın" };
-            return `
-            <div class="card bg-dark border-secondary mb-3 shadow-sm" style="border-left: 4px solid #ffc107 !important;">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center me-3" style="width:40px; height:40px;">
-                                <i class="fas fa-coins"></i>
-                            </div>
-                            <div>
-                                <h6 class="m-0 text-white">${isimler[y.altTip] || 'Altın'}</h6>
-                                <small class="text-secondary">${y.miktar} ${y.altTip.includes('gr') || y.altTip.includes('bilezik') ? 'Gram' : 'Adet'}</small>
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <small class="text-secondary d-block small">${y.tarih}</small>
-                        </div>
-                    </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 14px; font-weight: bold; color: #fff;">
+                    ${isMevduat ? `+${Number(y.netGetiri).toLocaleString('tr-TR')} TL` : ''}
                 </div>
-            </div>`;
-        }
+                <div style="font-size: 10px; color: #555;">${y.tarih}</div>
+            </div>
+        </div>`;
     }).join('');
 }
 /* ══════════════════════════════════════
