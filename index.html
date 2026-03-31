@@ -822,7 +822,16 @@ function rP4(){
   const kOpts=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
   const aG=fil.filter(t=>t.tip==='g').reduce((s,t)=>s+t.tutar,0);
   const aR=fil.filter(t=>t.tip==='r').reduce((s,t)=>s+t.tutar,0);
+// --- KATEGORİ İSTATİSTİKLERİ HESAPLAMA ---
+  let katVeri = {};
+  let katToplam = 0;
 
+  // Sadece Gider (tip === 'r') olanları kategorize edelim
+  fil.filter(t => t.tip === 'r').forEach(t => {
+    let k = t.kat || "Diğer";
+    katVeri[k] = (katVeri[k] || 0) + t.tutar;
+    katToplam += t.tutar;
+  });
   let html=`<div class="ph"><div class="pt">İşlemler</div></div>`;
   html+=`<div style="display:flex;gap:8px;margin-bottom:12px">
     <select id="f4k" onchange="rP4()" style="flex:1;padding:9px 12px;font-size:13px"><option value="">Tüm Kartlar</option>${kOpts}</select>
@@ -847,6 +856,31 @@ function rP4(){
       </div>
     </div>`;
   });
+  // --- APPLE TARZI İSTATİSTİK KARTI ---
+  if (katToplam > 0) {
+    html += `<div class="card" style="margin-top:20px; padding:20px; background:var(--bg2); border-radius:15px; border:1px solid var(--b);">
+      <div style="color:var(--t3); font-size:11px; text-transform:uppercase; font-weight:bold; margin-bottom:15px;">Harcama Dağılımı</div>`;
+
+    const renkler = ['#FF375F', '#32D74B', '#64D2FF', '#FFD60A', '#BF5AF2', '#FF9F0A', '#007AFF', '#5E5CE6'];
+    let rIdx = 0;
+
+    Object.entries(katVeri).sort((a, b) => b[1] - a[1]).forEach(([kat, tutar]) => {
+      let oran = ((tutar / katToplam) * 100).toFixed(1);
+      let renk = renkler[rIdx % renkler.length]; rIdx++;
+      
+      html += `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+          <span style="color:var(--t2)">${kat}</span>
+          <span style="color:var(--t1); font-weight:bold;">%${oran} · ${fmt(tutar)}</span>
+        </div>
+        <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
+          <div style="width:${oran}%; height:100%; background:${renk}; border-radius:10px;"></div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
   html+=`<button onclick="expCSV()" style="margin-top:10px;width:100%;padding:11px;border-radius:var(--rs);border:1px solid var(--b2);background:none;color:var(--t2);font-family:var(--ff);font-size:13px;cursor:pointer">CSV İndir</button>`;
   document.getElementById('p4').innerHTML=html;
 }
