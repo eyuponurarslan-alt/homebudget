@@ -625,9 +625,29 @@ function delDG(id){if(!confirm('Silinsin mi?'))return;S.duzenli=S.duzenli.filter
 function rP3(){
   const m=curM();
   const limitAy = addM(m, 1);
-  let html=`<div class="ph"><div class="pt">Kartlar — ${mLbl(m)}</div></div>`;
-  html+=`<div class="info">
-    <strong>Ekstre mantığı:</strong> Harcama tarihi ≤ kesim günü → bu ayın ekstresi → <em>bir sonraki ay</em> ödenir. Harcama tarihi > kesim günü → sonraki ayın ekstresi → <em>iki ay sonra</em> ödenir.
+  let html = `<div class="ay-selector" style="display:flex; overflow-x:auto; gap:10px; padding:15px 10px; background:var(--bg2); border-bottom:1px solid var(--b); scrollbar-width:none; -webkit-overflow-scrolling:touch;">`;
+  
+  S.aylar.forEach(ay => {
+    const isSel = (ay === m);
+    html += `
+    <div onclick="setM('${ay}'); rP3();" 
+         style="flex:0 0 auto; padding:8px 16px; border-radius:20px; font-size:13px; cursor:pointer;
+                background:${isSel ? 'var(--accent)' : 'var(--bg)'}; 
+                color:${isSel ? '#fff' : 'var(--t2)'};
+                border:1px solid ${isSel ? 'var(--accent)' : 'var(--b)'};
+                font-weight:${isSel ? '600' : '400'}; transition:all 0.2s;">
+      ${mLbl(ay)}
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Yeni Başlık ve Kısa Bilgi Notu
+  html += `
+  <div class="ph" style="padding-top:10px">
+    <div class="pt">Kart Harcamaları — ${mLbl(m)}</div>
+  </div>
+  <div class="info" style="font-size:11px; margin-bottom:15px; opacity:0.9;">
+    <strong>Planlama:</strong> Bu aydaki harcamalar <strong>${mLbl(limitAy)}</strong> Ana Tablo limitinden düşer.
   </div>`;
 
   (S.kartlar||[]).forEach(k=>{
