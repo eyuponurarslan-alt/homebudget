@@ -645,12 +645,13 @@ function rP3(){
   aylarListesi.forEach(ay => {
     const isSel = (ay === m);
     html += `
-    <div onclick="setM('${ay}'); rP3();" 
+    <div onclick="setM('${ay}'); rAll(); rP3();" 
          style="flex:0 0 auto; padding:8px 16px; border-radius:20px; font-size:13px; cursor:pointer;
                 background:${isSel ? 'var(--accent)' : 'var(--bg)'}; 
                 color:${isSel ? '#fff' : 'var(--t2)'};
                 border:1px solid ${isSel ? 'var(--accent)' : 'var(--b)'};
-                font-weight:${isSel ? '600' : '400'}; transition:all 0.2s;">
+                font-weight:${isSel ? '600' : '400'}; transition:all 0.2s;
+                position:relative; z-index:10;">
       ${mLbl(ay)}
     </div>`;
   });
