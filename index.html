@@ -664,34 +664,37 @@ let html = `
 
   // ... (Geri kalan kart döngüsü (S.kartlar||[]).forEach... aynı kalıyor)
 
-  (S.kartlar||[]).forEach(k=>{
-    const limit=netLim(k.id,limitAy); // Ana tablo limiti (referans için)
-    const kg = k.kesim || 1; 
-    const nextM = addM(m, 1);
-    const prevM = addM(m, -1);
+(S.kartlar || []).forEach(k => {
+    const limit = netLim(k.id, limitAy); 
+    const kg = parseInt(k.kesim) || 1;
+    const [y, m_num] = m.split('-').map(Number); // m: "2026-03"
 
     let startStr, endStr;
+
     if (kg > 20) {
-      // Bonus (27) gibi ay sonu kesilenler: 
-        // Mart sayfası Mart'ın 1'inden başlasın, 27'sinde bitsin.
-        startStr = `${m}-01`; 
-        endStr = `${m}-${String(kg).padStart(2, '0')}`;
+        // --- BONUS (27) GİBİ AY SONU KESİLENLER ---
+        // Mart Sayfası İçin: 27 Şubat - 26 Mart arası
+        let d_start = new Date(y, m_num - 2, kg); 
+        let d_end = new Date(y, m_num - 1, kg - 1);
+        startStr = d_start.toISOString().split('T')[0];
+        endStr = d_end.toISOString().split('T')[0];
     } else {
-        // World/Maximum (6) gibi ay başı kesilenler:
-        // Mart sayfası Mart'ın 7'sinden başlasın, Nisan'ın 6'sında bitsin.
-        startStr = `${m}-${String(kg + 1).padStart(2, '0')}`;
-        endStr = `${nextM}-${String(kg).padStart(2, '0')}`;
+        // --- WORLD/MAXIMUM (6) GİBİ AY BAŞI KESİLENLER ---
+        // Mart Sayfası İçin: 6 Mart - 5 Nisan arası
+        let d_start = new Date(y, m_num - 1, kg);
+        let d_end = new Date(y, m_num, kg - 1);
+        startStr = d_start.toISOString().split('T')[0];
+        endStr = d_end.toISOString().split('T')[0];
     }
 
-   const ayIslemler = (S.txns || []).filter(t => {
-    // 1. Temel Kontrol
-    if (t.tip !== 'r' || t.kartId !== k.id) return false;
+    const ayIslemler = (S.txns || []).filter(t => {
+        // 1. Sadece bu kartın giderleri
+        if (t.tip !== 'r' || t.kartId !== k.id) return false;
 
-    // 2. ANA KURAL: Eğer işlemin bir ekstre ayı (ekstreAy) varsa, 
-    // SADECE o ayda gösterilsin. Başka hiçbir şeye bakma.
-    if (t.ekstreAy) {
-        return t.ekstreAy === m; 
-    }
+        // 2. KESİN KURAL: Tarih bu banka döngüsü aralığındaysa göster.
+        // ekstreAy etiketini burada yok sayıyoruz (mükerrerliği bitirmek için).
+        return t.tarih >= startStr && t.tarih <= endStr;
+    });
 
     // 3. YEDEK KURAL: Eğer ekstreAy tanımlanmamışsa (eski kayıtlar vb.), 
     // o zaman senin belirlediğin tarih aralığına baksın.
