@@ -1119,11 +1119,34 @@ function delYatirim(id) {
     rP6();
 }
 
-// gT hatasını önlemek için yardımcı
-function gT(p, el) { 
-    // Alt bar tıklama mantığın (mevcut gT fonksiyonun varsa ona dokunma)
-    if(typeof window.navGo === 'function') window.navGo(p, el); 
+/* --- YARDIMCI FONKSİYONLAR VE KÖPRÜLER --- */
+
+// 1. Bugünün tarihini YYYY-MM-DD formatında verir
+function getToday() {
+    return new Date().toISOString().split('T')[0];
 }
+
+// 2. Alt bar navigasyonu için köprü (Eğer HTML'de onclick="gT(6,this)" yazıyorsa)
+// Bu fonksiyon artık hata vermeden yönlendirme yapar.
+window.gT = function(p, el) {
+    if(typeof window.navGo === 'function') {
+        window.navGo(p, el);
+    } else {
+        console.warn("navGo fonksiyonu bulunamadı, sayfa değiştirilemiyor.");
+    }
+};
+
+// 3. Mevcut rAll yapını koru
+window.rAll = function() {
+  if(typeof rP1 === 'function') rP1(); 
+  const activePage = document.querySelector('.pg.on')?.id;
+  
+  if (activePage === 'p2') rP2();
+  else if (activePage === 'p3') rP3();
+  else if (activePage === 'p4') rP4();
+  else if (activePage === 'p5') rP5();
+  else if (activePage === 'p6') rP6(); 
+};
 /* ══════════════════════════════════════
    QUICK MODAL — 3 tip: Kart Harcaması / Taksit / Gelir
 ══════════════════════════════════════ */
