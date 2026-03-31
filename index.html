@@ -52,7 +52,7 @@ select option{background:var(--bg3)}
 #tbar{height:calc(var(--tab) + env(safe-area-inset-bottom));background:rgba(9,9,9,0.97);border-top:1px solid var(--b);display:flex;align-items:flex-start;padding:8px 2px 0;backdrop-filter:blur(24px);flex-shrink:0}
 .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border:none;background:none;color:var(--t3);cursor:pointer;border-radius:var(--rs);transition:color .12s}
 .tb svg{width:20px;height:20px;stroke-width:1.7}
-.tb span{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.tb span{font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .tb.on{color:var(--A)}
 
 /* FAB */
@@ -243,10 +243,14 @@ select option{background:var(--bg3)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       <span>Ayarlar</span>
     </button>
-    <button class="tb" onclick="gT(6,this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></button>
-      <span>Yatırım</span>
-    </button>
+  <button class="tb" onclick="gT(6,this)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="20" x2="12" y2="10"></line>
+    <line x1="18" y1="20" x2="18" y2="4"></line>
+    <line x1="6" y1="20" x2="6" y2="16"></line>
+  </svg>
+  <span>Yatırım</span>
+</button>
   </nav>
 </div>
 
