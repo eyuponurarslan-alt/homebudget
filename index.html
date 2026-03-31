@@ -683,9 +683,16 @@ let html = `
         endStr = `${nextM}-${String(kg).padStart(2, '0')}`;
     }
 
-    const ayIslemler = (S.txns || []).filter(t => 
-        t.tip === 'r' && t.kartId === k.id && t.tarih >= startStr && t.tarih <= endStr
-    );
+   const ayIslemler = (S.txns || []).filter(t => {
+    // Sadece bu kartın giderleri
+    if (t.tip !== 'r' || t.kartId !== k.id) return false;
+
+    // ÖNCELİK: Eğer harcamada "ekstreAy" etiketi varsa ona bak (Nis 2026 gibi)
+    if (t.ekstreAy) return t.ekstreAy === m;
+
+    // YEDEK: Etiket yoksa eski usul tarih aralığına bak
+    return t.tarih >= startStr && t.tarih <= endStr;
+});
     const ayTaksitler=(S.kartTaksit||[]).filter(kt=>kt.kartId===k.id&&kt.baslangicAy<=m&&addM(kt.baslangicAy,kt.taksitSayisi-1)>=m);
     const borc = ayIslemler.reduce((s, t) => s + t.tutar, 0) + ayTaksitler.reduce((s, kt) => s + kt.aylikTutar, 0);
     const kalan = limit - borc;
@@ -816,8 +823,16 @@ function rP4(){
   const fK=document.getElementById('f4k')?.value||'';
   const fA=document.getElementById('f4a')?.value||m;
   const sorted=[...(S.txns||[])].sort((a,b)=>b.tarih.localeCompare(a.tarih));
-  const fil=sorted.filter(t=>(!fK||t.kartId===fK)&&t.tarih.startsWith(fA));
-  const months=[...new Set((S.txns||[]).map(t=>t.tarih.slice(0,7)))].sort().reverse();
+  const fil = sorted.filter(t => {
+    const kartMatch = !fK || t.kartId === fK;
+    // İşlem ya o ay yapılmış olmalı YA DA o ayın ekstresine atanmış olmalı
+    const ayMatch = t.tarih.startsWith(fA) || t.ekstreAy === fA;
+    return kartMatch && ayMatch;
+  });
+  const months = [...new Set([
+    ...(S.txns || []).map(t => t.tarih.slice(0, 7)),
+    ...(S.txns || []).map(t => t.ekstreAy).filter(Boolean) 
+  ])].sort().reverse();
   if(!months.includes(m))months.unshift(m);
   const kOpts=(S.kartlar||[]).map(k=>`<option value="${k.id}">${k.ad}</option>`).join('');
   const aG=fil.filter(t=>t.tip==='g').reduce((s,t)=>s+t.tutar,0);
