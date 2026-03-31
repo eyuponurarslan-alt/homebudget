@@ -684,16 +684,18 @@ let html = `
     }
 
    const ayIslemler = (S.txns || []).filter(t => {
-    // 1. Kart ve Gider kontrolü
+    // 1. Temel Kontrol
     if (t.tip !== 'r' || t.kartId !== k.id) return false;
 
-    // 2. ÖNCELİK: Tarih aralığına bak. 
-    // Eğer 7 Mart harcaması 7 Mart - 6 Nisan aralığındaysa (World için), 
-    // ekstreAy ne olursa olsun bu sayfada göster.
-    if (t.tarih >= startStr && t.tarih <= endStr) return true;
+    // 2. ANA KURAL: Eğer işlemin bir ekstre ayı (ekstreAy) varsa, 
+    // SADECE o ayda gösterilsin. Başka hiçbir şeye bakma.
+    if (t.ekstreAy) {
+        return t.ekstreAy === m; 
+    }
 
-    // 3. YEDEK: Eğer tarih dışındaysa ama manuel olarak bu aya atanmışsa yine göster
-    return t.ekstreAy === m;
+    // 3. YEDEK KURAL: Eğer ekstreAy tanımlanmamışsa (eski kayıtlar vb.), 
+    // o zaman senin belirlediğin tarih aralığına baksın.
+    return t.tarih >= startStr && t.tarih <= endStr;
 });
     const ayTaksitler=(S.kartTaksit||[]).filter(kt=>kt.kartId===k.id&&kt.baslangicAy<=m&&addM(kt.baslangicAy,kt.taksitSayisi-1)>=m);
     const borc = ayIslemler.reduce((s, t) => s + t.tutar, 0) + ayTaksitler.reduce((s, kt) => s + kt.aylikTutar, 0);
