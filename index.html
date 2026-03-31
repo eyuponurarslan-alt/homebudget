@@ -1121,31 +1121,31 @@ function delYatirim(id) {
 
 /* --- YARDIMCI FONKSİYONLAR VE KÖPRÜLER --- */
 
-// 1. Bugünün tarihini YYYY-MM-DD formatında verir
-function getToday() {
-    return new Date().toISOString().split('T')[0];
-}
-
-// 2. Alt bar navigasyonu için köprü (Eğer HTML'de onclick="gT(6,this)" yazıyorsa)
-// Bu fonksiyon artık hata vermeden yönlendirme yapar.
+// HATAYI ÇÖZEN SEÇENEK B:
 window.gT = function(p, el) {
-    if(typeof window.navGo === 'function') {
-        window.navGo(p, el);
-    } else {
-        console.warn("navGo fonksiyonu bulunamadı, sayfa değiştirilemiyor.");
-    }
-};
+    // 1. Önce tüm sayfaları (class'ı .pg olanlar) gizle
+    document.querySelectorAll('.pg').forEach(page => {
+        page.classList.remove('on');
+        page.style.display = 'none'; // Bazı yapılarda on class'ı yetmeyebilir, garantiye alalım
+    });
 
-// 3. Mevcut rAll yapını koru
-window.rAll = function() {
-  if(typeof rP1 === 'function') rP1(); 
-  const activePage = document.querySelector('.pg.on')?.id;
-  
-  if (activePage === 'p2') rP2();
-  else if (activePage === 'p3') rP3();
-  else if (activePage === 'p4') rP4();
-  else if (activePage === 'p5') rP5();
-  else if (activePage === 'p6') rP6(); 
+    // 2. Tıklanan sayfayı bul ve göster (p1, p2, p6 vb.)
+    const targetId = 'p' + p; 
+    const targetPage = document.getElementById(targetId);
+    
+    if(targetPage) {
+        targetPage.classList.add('on');
+        targetPage.style.display = 'block';
+
+        // 3. Alt menüdeki (nav-item) aktiflik görselini güncelle
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+        if(el) el.classList.add('active');
+
+        // 4. Sayfa içeriğini rAll üzerinden yenile
+        if(typeof window.rAll === 'function') window.rAll();
+    } else {
+        console.error(targetId + " ID'li sayfa bulunamadı!");
+    }
 };
 /* ══════════════════════════════════════
    QUICK MODAL — 3 tip: Kart Harcaması / Taksit / Gelir
