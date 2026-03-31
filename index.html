@@ -347,9 +347,16 @@ onAuthStateChanged(auth,user=>{
 
 <script>
 const MN=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-const CATS_R=['Market','Yemek / Restoran','Fatura','Ulaşım / Yakıt','Sağlık','Çocuk','Giyim','Teknoloji','Eğlence','Tatil','Sigorta','Aidat / Abonelik','Diğer'];
 const CATS_G=['Maaş','Kira Geliri','Yatırım Getirisi','Prim','Temettü','Diğer Gelir'];
-const CATS_T=['Ev - Elektronik','Ev - Mobilya','Araç - Bakım','Sağlık','Çocuk','Eğitim','Tatil','Diğer'];
+const YENI_KATEGORILER = [
+  "Evren", "Araç - Yakıt - Otopark", "Ev - Elektronik - Tadilat", 
+  "Vergi-Kamu", "Abonelik", "İşlem - Kart Kesintileri", 
+  "Eğitim-Kişisel Gelişim", "Sağlık / Sigorta", "Giyim - Kozmetik", 
+  "Yemek / Market", "Bilet - Seyahat", "Diğer"
+];
+
+const CATS_R = YENI_KATEGORILER;
+const CATS_T = YENI_KATEGORILER;
 
 function DEF_K(){return[
   {id:'k1',ad:'Bonus Garanti',      kesim:27},
@@ -758,6 +765,48 @@ function editT(id) {
     sv();     // Veriyi kalıcı hale getirir
     rP3();    // Kartlar sayfasını (P3) günceller
     rAll();   // Ana tabloyu ve diğer her şeyi günceller
+}
+  function renderAppleChart(ay) {
+    const veriler = {};
+    
+    // 1. Tek seferlik işlemleri ekle
+    const islemler = S.txns.filter(t => t.tarih.startsWith(ay));
+    islemler.forEach(t => {
+        const k = t.kat || "Diğer";
+        veriler[k] = (veriler[k] || 0) + t.tutar;
+    });
+
+    // 2. Taksitli işlemlerin bu aya düşen payını ekle
+    // (Senin sisteminde taksitleri filtreleyen mantığı buraya ekliyoruz)
+    const taksitler = S.kartTaksit || [];
+    taksitler.forEach(t => {
+        const k = t.kat || "Diğer";
+        veriler[k] = (veriler[k] || 0) + (t.tutar / t.taksit); 
+    });
+
+    const toplam = Object.values(veriler).reduce((a, b) => a + b, 0);
+    if (toplam === 0) return "";
+
+    let html = `<div class="card" style="margin:15px; padding:20px; background:var(--bg2); border-radius:15px; border:1px solid var(--b);">
+        <div style="color:var(--t3); font-size:11px; text-transform:uppercase; font-weight:bold;">${mLbl(ay)} Özeti</div>
+        <div style="font-size:28px; font-weight:bold; margin:10px 0;">${fmt(toplam)}</div>`;
+
+    Object.entries(veriler).sort((a, b) => b[1] - a[1]).forEach(([kat, tutar]) => {
+        const oran = ((tutar / toplam) * 100).toFixed(1);
+        html += `
+        <div style="margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                <span>${kat}</span>
+                <span style="color:var(--t2)">%${oran} · ${fmt(tutar)}</span>
+            </div>
+            <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:10px;">
+                <div style="width:${oran}%; height:100%; background:var(--accent); border-radius:10px; transition:width 0.8s ease;"></div>
+            </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+    return html;
 }
 /* ══════════════════════════════════════
    SAYFA 4 — İŞLEMLER
