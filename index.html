@@ -1018,9 +1018,9 @@ function renderYatirimList() {
         return `<div style="text-align: center; color: var(--t3); margin-top: 50px; font-size:13px;">Henüz bir varlık eklenmedi.</div>`;
     
     return S.yatirimlar.sort((a,b) => new Date(b.tarihRaw) - new Date(a.tarihRaw)).map(y => {
-        let accentColor = '#ffc107'; // Altın sarısı
-        if(y.tip === 'mevduat') accentColor = '#0dcaf0'; // Mevduat mavisi
-        if(y.tip === 'doviz') accentColor = '#20c997'; // Döviz yeşili
+        let accentColor = '#ffc107'; 
+        if(y.tip === 'mevduat') accentColor = '#0dcaf0'; 
+        if(y.tip === 'doviz') accentColor = '#20c997'; 
 
         const isimler = { 
             "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek Altın", 
@@ -1031,21 +1031,27 @@ function renderYatirimList() {
         const baslik = y.tip === 'mevduat' ? 'Mevduat Hesabı' : (isimler[y.altTip] || 'Varlık');
 
         return `
-        <div style="background: var(--b); border-left: 5px solid ${accentColor}; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; position:relative;">
+        <div style="background: var(--b); border-left: 5px solid ${accentColor}; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; position:relative; overflow:hidden;">
             <div style="flex:1">
                 <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: ${accentColor};">${baslik}</div>
-                <div style="font-size: 12px; color: var(--t3);">
+                <div style="font-size: 11px; color: #aaa;">
                     ${y.tip === 'mevduat' ? `Ana Para: ${Number(y.anaPara).toLocaleString('tr-TR')} TL` : `Miktar: ${y.miktar} ${y.tip === 'altin' && (y.altTip.includes('gr') || y.altTip.includes('bilezik')) ? 'Gram' : 'Adet'}`}
                 </div>
             </div>
-            <div style="text-align: right; margin-right: 35px;">
+            <div style="text-align: right; margin-right: 40px;">
                 <div style="font-size: 14px; font-weight: bold; color: #fff;">
-                    ${y.tip === 'mevduat' ? `+${Number(y.netGetiri).toLocaleString('tr-TR')} TL` : (y.tip === 'doviz' ? `${y.miktar} ${y.altTip}` : '')}
+                    ${y.tip === 'mevduat' ? `+${Number(y.netGetiri).toLocaleString('tr-TR')} TL` : (y.tip === 'doviz' ? `${y.miktar} ${y.altTip}` : `${y.miktar} Adet`)}
                 </div>
-                <div style="font-size: 10px; color: var(--t3);">${y.tarih}</div>
+                <div style="font-size: 10px; color: #555; margin-top:3px;">${y.tarih}</div>
             </div>
-            <div onclick="delYatirim('${y.id}')" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); color:#ff4444; cursor:pointer; padding:5px; opacity:0.7;">
-                <i class="fas fa-trash-alt"></i>
+            
+            <div onclick="delYatirim('${y.id}')" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; width:24px; height:24px; display:flex; align-items:center; justify-content:center; color:#666; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='#666'">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
             </div>
         </div>`;
     }).join('');
