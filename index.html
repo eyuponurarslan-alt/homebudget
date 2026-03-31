@@ -982,15 +982,13 @@ function rP6() {
     const target = document.getElementById('p6');
     if (!S.yatirimlar) S.yatirimlar = [];
     
-    // Toplam Portföy (Vade sonu TL değerlerini toplar)
     let toplam = 0;
     S.yatirimlar.forEach(y => {
         if(y.tip === 'mevduat') toplam += parseFloat(y.vadeSonuToplam || 0);
-        else if(y.tip === 'doviz') toplam += 0; // Döviz kurları dinamik olmadığı için TL toplamına şimdilik 0 ekler
     });
 
-    let html = `
-    <div style="padding: 20px; font-family: inherit; color: white;">
+    target.innerHTML = `
+    <div style="padding: 20px; color: white; font-family: sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
             <h2 style="margin: 0; font-size: 22px; font-weight: bold; color: var(--A);">Yatırım & Varlıklar</h2>
             <button onclick="showYatirimForm()" style="background: var(--A); color: #000; border: none; padding: 10px 18px; border-radius: 12px; font-weight: bold; cursor: pointer;">
@@ -999,18 +997,12 @@ function rP6() {
         </div>
 
         <div style="background: rgba(255,255,255,0.05); border: 1px solid var(--b); border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 25px;">
-            <div style="color: var(--t3); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Toplam Portföy Değeri (Vade Sonu)</div>
+            <div style="color: var(--t3); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Portföy Değeri (Vade Sonu)</div>
             <div style="font-size: 28px; font-weight: bold; color: #fff;">${toplam.toLocaleString('tr-TR')} TL</div>
-            <small style="color:var(--t3); font-size:9px;">* Altın ve Döviz değerleri miktar bazlıdır, TL'ye dahil edilmemiştir.</small>
         </div>
 
-        <div style="color: var(--t3); font-size: 12px; margin-bottom: 15px; border-bottom: 1px solid var(--b); padding-bottom: 5px; font-weight:bold;">VARLIK LİSTESİ</div>
-        
-        <div id="yatirimListContainer">
-            ${renderYatirimList()}
-        </div>
+        <div id="yatirimListContainer">${renderYatirimList()}</div>
     </div>`;
-    target.innerHTML = html;
 }
 
 function renderYatirimList() {
@@ -1018,200 +1010,119 @@ function renderYatirimList() {
         return `<div style="text-align: center; color: var(--t3); margin-top: 50px; font-size:13px;">Henüz bir varlık eklenmedi.</div>`;
     
     return S.yatirimlar.sort((a,b) => new Date(b.tarihRaw) - new Date(a.tarihRaw)).map(y => {
-        let accentColor = '#ffc107'; 
-        if(y.tip === 'mevduat') accentColor = '#0dcaf0'; 
-        if(y.tip === 'doviz') accentColor = '#20c997'; 
-
-        const isimler = { 
-            "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek Altın", 
-            "yarim": "Yarım Altın", "tam": "Tam Altın", "ata": "Ata Altın",
-            "USD": "Amerikan Doları ($)", "EUR": "Euro (€)"
-        };
-        
+        let accentColor = y.tip === 'mevduat' ? '#0dcaf0' : (y.tip === 'doviz' ? '#20c997' : '#ffc107');
+        const isimler = { "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek", "yarim": "Yarım", "tam": "Tam", "ata": "Ata", "USD": "Dolar ($)", "EUR": "Euro (€)" };
         const baslik = y.tip === 'mevduat' ? 'Mevduat Hesabı' : (isimler[y.altTip] || 'Varlık');
 
         return `
-        <div style="background: var(--b); border-left: 5px solid ${accentColor}; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; position:relative; overflow:hidden;">
+        <div style="background: var(--b); border-left: 5px solid ${accentColor}; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; position:relative;">
             <div style="flex:1">
-                <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: ${accentColor};">${baslik}</div>
-                <div style="font-size: 11px; color: #aaa;">
-                    ${y.tip === 'mevduat' ? `Ana Para: ${Number(y.anaPara).toLocaleString('tr-TR')} TL` : `Miktar: ${y.miktar} ${y.tip === 'altin' && (y.altTip.includes('gr') || y.altTip.includes('bilezik')) ? 'Gram' : 'Adet'}`}
-                </div>
+                <div style="font-weight: bold; font-size: 15px; color: ${accentColor};">${baslik}</div>
+                <div style="font-size: 11px; color: var(--t3);">${y.tarih}</div>
             </div>
-            <div style="text-align: right; margin-right: 40px;">
+            <div style="text-align: right; margin-right: 35px;">
                 <div style="font-size: 14px; font-weight: bold; color: #fff;">
-                    ${y.tip === 'mevduat' ? `+${Number(y.netGetiri).toLocaleString('tr-TR')} TL` : (y.tip === 'doviz' ? `${y.miktar} ${y.altTip}` : `${y.miktar} Adet`)}
+                    ${y.tip === 'mevduat' ? Number(y.vadeSonuToplam).toLocaleString('tr-TR') + ' TL' : y.miktar + ' ' + (y.altTip || '')}
                 </div>
-                <div style="font-size: 10px; color: #555; margin-top:3px;">${y.tarih}</div>
+                ${y.tip === 'mevduat' ? `<div style="font-size: 10px; color: #555;">Net Kâr: +${Number(y.netGetiri).toLocaleString('tr-TR')}</div>` : ''}
             </div>
-            
-            <div onclick="delYatirim('${y.id}')" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; width:24px; height:24px; display:flex; align-items:center; justify-content:center; color:#666; transition:color 0.2s;" onmouseover="this.style.color='#ff4444'" onmouseout="this.style.color='#666'">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
+            <div onclick="delYatirim('${y.id}')" style="position:absolute; right:12px; cursor:pointer; color:#666;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </div>
         </div>`;
     }).join('');
 }
 
-Harika, tam istediğin günlük bileşik faiz, 5.000 TL muafiyet ve %17,5 stopaj mantığını tek bir pakette birleştirdim. Bu kod, senin verdiğin örnekteki gibi (14.802 TL giriş, 10,74 TL brüt faiz, 1,88 TL kesinti) her günü tek tek hesaplayıp bakiyeyi büyüterek ilerler.
-
-Aşağıdaki bloğu, eski showYatirimForm, toggleYatirimFields ve saveYatirim fonksiyonlarını silerek yerine yapıştırabilirsin:
-
-JavaScript
-/* ══════════════════════════════════════════════════════════════
-    GELİŞMİŞ YATIRIM SİSTEMİ (BİLEŞİK FAİZ + MUAFİYET + STOPAJ)
-   ══════════════════════════════════════════════════════════════ */
-
-// 1. FORM MODALINI AÇAR
 function showYatirimForm() {
     let html = `
-    <div id="yModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.96); z-index:10000; padding:20px; color:white; backdrop-filter:blur(10px); font-family:sans-serif;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:10px;">
-            <h3 style="color:var(--A); margin:0;">Yeni Varlık Ekle</h3>
-            <button onclick="document.getElementById('yModal').remove()" style="background:none; border:none; color:#fff; font-size:28px; cursor:pointer;">&times;</button>
+    <div id="yModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.96); z-index:10000; padding:20px; color:white; backdrop-filter:blur(10px);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3>Yeni Varlık</h3>
+            <button onclick="document.getElementById('yModal').remove()" style="background:none; border:none; color:white; font-size:30px;">&times;</button>
         </div>
+        <label style="font-size:11px; color:gray;">İŞLEM TARİHİ</label>
+        <input type="date" id="yTarih" value="${new Date().toISOString().split('T')[0]}" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px; margin-bottom:15px;">
         
-        <div style="margin-bottom:15px;">
-            <label style="display:block; color:#888; font-size:11px; margin-bottom:5px;">BAŞLANGIÇ / İŞLEM TARİHİ</label>
-            <input type="date" id="yTarih" value="${new Date().toISOString().split('T')[0]}" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-        </div>
-
-        <div style="margin-bottom:15px;">
-            <label style="display:block; color:#888; font-size:11px; margin-bottom:5px;">VARLIK TÜRÜ</label>
-            <select id="yTip" onchange="toggleYatirimFields()" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-                <option value="mevduat">Vadeli Mevduat (Günlük/Bileşik)</option>
-                <option value="altin">Altın</option>
-                <option value="doviz">Döviz (Dolar/Euro)</option>
-            </select>
-        </div>
-
+        <label style="font-size:11px; color:gray;">TÜR</label>
+        <select id="yTip" onchange="toggleYatirimFields()" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px; margin-bottom:15px;">
+            <option value="mevduat">Vadeli Mevduat</option>
+            <option value="altin">Altın</option>
+            <option value="doviz">Döviz</option>
+        </select>
         <div id="yFields"></div>
-
-        <button onclick="saveYatirim()" style="width:100%; background:var(--A); color:black; border:none; padding:16px; border-radius:12px; font-weight:bold; margin-top:20px; font-size:15px; cursor:pointer;">
-            HESAPLA VE KAYDET
-        </button>
+        <button onclick="saveYatirim()" style="width:100%; background:var(--A); padding:16px; border:none; border-radius:12px; font-weight:bold; margin-top:20px;">KAYDET</button>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
     toggleYatirimFields();
 }
 
-// 2. SEÇİME GÖRE ALANLARI GÜNCELLER
 function toggleYatirimFields() {
     const tip = document.getElementById('yTip').value;
     const div = document.getElementById('yFields');
-    
     if (tip === 'mevduat') {
         div.innerHTML = `
-            <div style="margin-bottom:10px;">
-                <label style="display:block; color:#888; font-size:10px; margin-bottom:4px;">YATIRILAN TOPLAM PARA (TL)</label>
-                <input type="number" id="yAnaPara" placeholder="14802.84" step="0.01" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-            </div>
+            <input type="number" id="yAnaPara" placeholder="Ana Para (TL)" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px; margin-bottom:10px;">
             <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <div style="flex:1;">
-                    <label style="display:block; color:#888; font-size:10px; margin-bottom:4px;">YILLIK FAİZ %</label>
-                    <input type="number" id="yOran" value="40" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-                </div>
-                <div style="flex:1;">
-                    <label style="display:block; color:#888; font-size:10px; margin-bottom:4px;">STOPAJ %</label>
-                    <input type="number" id="yStopaj" value="17.5" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-                </div>
+                <input type="number" id="yOran" value="40" placeholder="Faiz %" style="flex:1; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px;">
+                <input type="number" id="yStopaj" value="17.5" placeholder="Stopaj %" style="flex:1; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px;">
             </div>
-            <div style="margin-bottom:10px;">
-                <label style="display:block; color:#888; font-size:10px; margin-bottom:4px;">MUAFİYET (FAİZ DIŞI TUTAR)</label>
-                <input type="number" id="yMuafiyet" value="5000" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-            </div>
-            <div>
-                <label style="display:block; color:#888; font-size:10px; margin-bottom:4px;">VADE SONU TARİHİ</label>
-                <input type="date" id="yVadeTarih" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">
-            </div>`;
-    } else if (tip === 'altin') {
-        div.innerHTML = `
-            <select id="yAltTip" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px; margin-bottom:10px;">
-                <option value="gram_24">24K Gram</option>
-                <option value="bilezik_22">22K Bilezik (gr)</option>
-                <option value="ceyrek">Çeyrek Altın</option>
-                <option value="yarim">Yarım Altın</option>
-                <option value="tam">Tam Altın</option>
-                <option value="ata">Ata Altın</option>
-            </select>
-            <input type="number" id="yMiktar" placeholder="Miktar" step="0.01" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">`;
+            <input type="number" id="yMuafiyet" value="5000" placeholder="Muafiyet" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px; margin-bottom:10px;">
+            <label style="font-size:11px; color:gray;">VADE SONU</label>
+            <input type="date" id="yVadeTarih" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px;">`;
     } else {
-        div.innerHTML = `
-            <select id="yAltTip" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px; margin-bottom:10px;">
-                <option value="USD">Dolar ($)</option>
-                <option value="EUR">Euro (€)</option>
-            </select>
-            <input type="number" id="yMiktar" placeholder="Tutar" style="width:100%; background:#1a1a1a; border:1px solid #333; color:white; padding:12px; border-radius:10px;">`;
+        div.innerHTML = `<input type="text" id="yAltTip" placeholder="Cinsi (Gram, USD vb.)" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px; margin-bottom:10px;">
+                         <input type="number" id="yMiktar" placeholder="Miktar" style="width:100%; padding:12px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:10px;">`;
     }
 }
 
-// 3. HESAPLAMA VE KAYIT FONKSİYONU
 function saveYatirim() {
     const tip = document.getElementById('yTip').value;
-    const islemTarihiRaw = document.getElementById('yTarih').value;
-    const formatliIslemTarihi = islemTarihiRaw.split('-').reverse().join('.');
-    
-    let d = { id: 'y'+Date.now(), tip: tip, tarih: formatliIslemTarihi, tarihRaw: islemTarihiRaw };
+    const tRaw = document.getElementById('yTarih').value;
+    let d = { id: 'y'+Date.now(), tip, tarihRaw: tRaw, tarih: tRaw.split('-').reverse().join('.') };
 
     if (tip === 'mevduat') {
         let bakiye = parseFloat(document.getElementById('yAnaPara').value) || 0;
-        const faizOrani = parseFloat(document.getElementById('yOran').value) || 0;
-        const stopajOrani = parseFloat(document.getElementById('yStopaj').value) || 0;
-        const muafiyet = parseFloat(document.getElementById('yMuafiyet').value) || 0;
-        const vadeSonuRaw = document.getElementById('yVadeTarih').value;
+        const faiz = parseFloat(document.getElementById('yOran').value) || 0;
+        const stopaj = parseFloat(document.getElementById('yStopaj').value) || 0;
+        const muaf = parseFloat(document.getElementById('yMuafiyet').value) || 0;
+        const vRaw = document.getElementById('yVadeTarih').value;
+        const gun = Math.ceil((new Date(vRaw) - new Date(tRaw)) / (1000*60*60*24)) || 1;
 
-        if (!vadeSonuRaw) { alert("Lütfen vade sonu tarihini seçin."); return; }
-
-        const t1 = new Date(islemTarihiRaw);
-        const t2 = new Date(vadeSonuRaw);
-        const gunSayisi = Math.ceil((t2 - t1) / (1000 * 60 * 60 * 24));
-
-        if (gunSayisi <= 0) { alert("Vade sonu tarihi, işlem tarihinden sonra olmalıdır."); return; }
-
-        let toplamNetKazanc = 0;
-        const anaParaBaslangic = bakiye;
-
-        // GÜNLÜK BİLEŞİK DÖNGÜ (Senin anlattığın mantık)
-        for (let i = 0; i < gunSayisi; i++) {
-            let matrah = bakiye - muafiyet;
-            if (matrah > 0) {
-                let gunlukBrut = (matrah * faizOrani) / 36500;
-                let kesinti = gunlukBrut * (stopajOrani / 100);
-                let gunlukNet = gunlukBrut - kesinti;
-                
-                bakiye += gunlukNet; // Kazanç ana paraya eklenir (bileşik)
-                toplamNetKazanc += gunlukNet;
+        let kar = 0;
+        for (let i = 0; i < gun; i++) {
+            let m = bakiye - muaf;
+            if (m > 0) {
+                let gBrut = (m * faiz) / 36500;
+                let gNet = gBrut * (1 - (stopaj/100));
+                bakiye += gNet;
+                kar += gNet;
             }
         }
-
-        d.anaPara = anaParaBaslangic;
-        d.netGetiri = toplamNetKazanc.toFixed(2);
         d.vadeSonuToplam = bakiye.toFixed(2);
-        d.vadeTarih = vadeSonuRaw.split('-').reverse().join('.');
-        d.gun = gunSayisi;
+        d.netGetiri = kar.toFixed(2);
     } else {
-        d.altTip = document.getElementById('yAltTip').value; 
+        d.altTip = document.getElementById('yAltTip').value;
         d.miktar = document.getElementById('yMiktar').value;
     }
 
-    if (!S.yatirimlar) S.yatirimlar = [];
-    S.yatirimlar.push(d); 
-    
-    // Veriyi kaydet ve sayfayı yenile
-    if(typeof sv === 'function') sv(); 
-    document.getElementById('yModal').remove(); 
+    if(!S.yatirimlar) S.yatirimlar = [];
+    S.yatirimlar.push(d);
+    if(typeof sv === 'function') sv();
+    document.getElementById('yModal').remove();
     rP6();
 }
 
 function delYatirim(id) {
-    if (!confirm('Bu varlık kaydını silmek istediğinize emin misiniz?')) return;
-    S.yatirimlar = S.yatirimlar.filter(y => y.id !== id);
+    if(!confirm('Silinsin mi?')) return;
+    S.yatirimlar = S.yatirimlar.filter(x => x.id !== id);
     if(typeof sv === 'function') sv();
     rP6();
+}
+
+// gT hatasını önlemek için yardımcı
+function gT(p, el) { 
+    // Alt bar tıklama mantığın (mevcut gT fonksiyonun varsa ona dokunma)
+    if(typeof window.navGo === 'function') window.navGo(p, el); 
 }
 /* ══════════════════════════════════════
    QUICK MODAL — 3 tip: Kart Harcaması / Taksit / Gelir
