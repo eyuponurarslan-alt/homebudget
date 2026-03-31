@@ -974,28 +974,37 @@ function addKart(){
 }
 function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP5();rP1();}
   
-/* ══════════════════════════════════════
-    rP6 — YATIRIM & VARLIKLAR
-══════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+    YATIRIM SAYFASI (P6) TÜM FONKSİYONLAR
+   ══════════════════════════════════════════════════════════════ */
+
+// 1. ANA SAYFA ÇİZİMİ (rP6)
 function rP6() {
     const target = document.getElementById('p6');
     if (!S.yatirimlar) S.yatirimlar = [];
     
+    // Toplam Portföy Hesaplama (Vade sonu toplamlarını baz alır)
+    let toplam = 0;
+    S.yatirimlar.forEach(y => {
+        if(y.tip === 'mevduat') toplam += parseFloat(y.vadeSonuToplam || 0);
+        // Altın fiyatı dinamik olmadığı için şimdilik sadece mevduat toplamı döner
+    });
+
     let html = `
-    <div style="padding: 20px; font-family: sans-serif; color: white;">
+    <div style="padding: 20px; font-family: inherit; color: white;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-            <h2 style="margin: 0; font-size: 22px; font-weight: bold; color: #ffc107;">Yatırım & Varlıklar</h2>
-            <button onclick="showYatirimForm()" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            <h2 style="margin: 0; font-size: 22px; font-weight: bold; color: var(--A);">Yatırım & Varlıklar</h2>
+            <button onclick="showYatirimForm()" style="background: var(--A); color: #000; border: none; padding: 10px 18px; border-radius: 12px; font-weight: bold; cursor: pointer;">
                 + Yeni Ekle
             </button>
         </div>
 
-        <div style="background: #1e1e1e; border: 1px solid #333; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-            <div style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Toplam Portföy Değeri</div>
-            <div id="toplamVarlikTL" style="font-size: 28px; font-weight: bold; color: #fff;">0.00 TL</div>
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid var(--b); border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 25px;">
+            <div style="color: var(--t3); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Toplam Portföy Değeri (Vade Sonu)</div>
+            <div style="font-size: 28px; font-weight: bold; color: #fff;">${toplam.toLocaleString('tr-TR')} TL</div>
         </div>
 
-        <div style="color: #888; font-size: 13px; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">VARLIK LİSTESİ</div>
+        <div style="color: var(--t3); font-size: 12px; margin-bottom: 15px; border-bottom: 1px solid var(--b); padding-bottom: 5px; font-weight:bold;">VARLIK LİSTESİ</div>
         
         <div id="yatirimListContainer">
             ${renderYatirimList()}
@@ -1004,33 +1013,99 @@ function rP6() {
     target.innerHTML = html;
 }
 
-// 1. LİSTELEME FONKSİYONU
+// 2. LİSTELEME FONKSİYONU
 function renderYatirimList() {
     if (!S.yatirimlar || S.yatirimlar.length === 0) 
-        return `<div style="text-align: center; color: #666; margin-top: 50px;">Henüz bir varlık eklenmedi.</div>`;
+        return `<div style="text-align: center; color: var(--t3); margin-top: 50px; font-size:13px;">Henüz bir varlık eklenmedi.</div>`;
     
     return S.yatirimlar.map(y => {
         const isMevduat = y.tip === 'mevduat';
-        const accentColor = isMevduat ? '#0dcaf0' : '#ffc107'; // Mevduat mavi, Altın sarı
+        const accentColor = isMevduat ? '#0dcaf0' : '#ffc107'; 
         const isimler = { "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek Altın", "ata": "Ata Altın" };
         const baslik = isMevduat ? 'Mevduat Hesabı' : (isimler[y.altTip] || 'Altın');
 
         return `
-        <div style="background: #1a1a1a; border-left: 5px solid ${accentColor}; border-radius: 10px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+        <div style="background: var(--b); border-left: 5px solid ${accentColor}; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; position:relative;">
             <div>
-                <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px; color: ${accentColor};">${baslik}</div>
-                <div style="font-size: 12px; color: #aaa;">
-                    ${isMevduat ? `Ana Para: ${Number(y.anaPara).toLocaleString('tr-TR')} TL` : `Miktar: ${y.miktar} ${y.altTip.includes('gr') ? 'Gram' : 'Adet'}`}
+                <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: ${accentColor};">${baslik}</div>
+                <div style="font-size: 12px; color: var(--t3);">
+                    ${isMevduat ? `Ana Para: ${Number(y.anaPara).toLocaleString('tr-TR')} TL` : `Miktar: ${y.miktar} ${y.altTip.includes('gr') || y.altTip.includes('bilezik') ? 'Gram' : 'Adet'}`}
                 </div>
             </div>
-            <div style="text-align: right;">
+            <div style="text-align: right; margin-right: 25px;">
                 <div style="font-size: 14px; font-weight: bold; color: #fff;">
                     ${isMevduat ? `+${Number(y.netGetiri).toLocaleString('tr-TR')} TL` : ''}
                 </div>
-                <div style="font-size: 10px; color: #555;">${y.tarih}</div>
+                <div style="font-size: 10px; color: var(--t3);">${y.tarih}</div>
+            </div>
+            <div onclick="delYatirim('${y.id}')" style="position:absolute; right:10px; top:35%; color:#ff4444; cursor:pointer; opacity:0.6;">
+                <i class="fas fa-trash-alt"></i>
             </div>
         </div>`;
     }).join('');
+}
+
+// 3. FORM MODALI
+function showYatirimForm() {
+    let html = `
+    <div id="yModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:10000; padding:20px; color:white; backdrop-filter:blur(10px);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="color:var(--A); margin:0;">Varlık Ekle</h3>
+            <button onclick="document.getElementById('yModal').remove()" style="background:none; border:none; color:#fff; font-size:24px;">&times;</button>
+        </div>
+        <div style="margin-bottom:15px;">
+            <label style="display:block; color:var(--t3); font-size:11px; margin-bottom:5px;">TÜR</label>
+            <select id="yTip" onchange="toggleYatirimFields()" style="width:100%; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px;">
+                <option value="altin">Altın</option>
+                <option value="mevduat">Vadeli Mevduat</option>
+            </select>
+        </div>
+        <div id="yFields"></div>
+        <button onclick="saveYatirim()" style="width:100%; background:var(--A); color:black; border:none; padding:15px; border-radius:12px; font-weight:bold; margin-top:20px;">KAYDET</button>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    toggleYatirimFields();
+}
+
+// 4. INPUT DEĞİŞİMİ
+function toggleYatirimFields() {
+    const tip = document.getElementById('yTip').value;
+    const div = document.getElementById('yFields');
+    if (tip === 'altin') {
+        div.innerHTML = `<select id="yAltTip" style="width:100%; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px; margin-bottom:15px;">
+            <option value="bilezik_22">22K Bilezik (gr)</option>
+            <option value="gram_24">24K Gram</option>
+            <option value="ceyrek">Çeyrek (Adet)</option>
+            <option value="ata">Ata (Adet)</option>
+        </select>
+        <input type="number" id="yMiktar" placeholder="Miktar" style="width:100%; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px;">`;
+    } else {
+        div.innerHTML = `<input type="number" id="yAnaPara" placeholder="Toplam Ana Para" style="width:100%; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px; margin-bottom:10px;">
+        <input type="number" id="yFaizliTutar" placeholder="Faiz İşleyecek Matrah" style="width:100%; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px; margin-bottom:10px;">
+        <div style="display:flex; gap:10px;">
+            <input type="number" id="yOran" placeholder="Faiz %" style="flex:1; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px;">
+            <input type="number" id="yGun" placeholder="Vade (Gün)" style="flex:1; background:#222; border:1px solid var(--b); color:white; padding:12px; border-radius:10px;">
+        </div>`;
+    }
+}
+
+// 5. KAYIT VE SİLME
+function saveYatirim() {
+    const tip = document.getElementById('yTip').value;
+    let d = { id: 'y'+Date.now(), tip, tarih: new Date().toLocaleDateString('tr-TR') };
+    if (tip === 'mevduat') {
+        const ap = parseFloat(document.getElementById('yAnaPara').value)||0, ft = parseFloat(document.getElementById('yFaizliTutar').value)||0, or = parseFloat(document.getElementById('yOran').value)||0, gn = parseFloat(document.getElementById('yGun').value)||1;
+        const netKazanc = ((ft * or * gn) / 36500) * 0.95; // %5 stopaj düşülmüş
+        d.anaPara = ap; d.netGetiri = netKazanc.toFixed(2); d.vadeSonuToplam = (ap + netKazanc).toFixed(2);
+    } else {
+        d.altTip = document.getElementById('yAltTip').value; d.miktar = document.getElementById('yMiktar').value;
+    }
+    S.yatirimlar.push(d); sv(); document.getElementById('yModal').remove(); rP6();
+}
+
+function delYatirim(id) {
+    if (!confirm('Silinsin mi?')) return;
+    S.yatirimlar = S.yatirimlar.filter(y => y.id !== id); sv(); rP6();
 }
 /* ══════════════════════════════════════
    QUICK MODAL — 3 tip: Kart Harcaması / Taksit / Gelir
