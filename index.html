@@ -664,47 +664,40 @@ let html = `
 
   // ... (Geri kalan kart döngüsü (S.kartlar||[]).forEach... aynı kalıyor)
 
-(S.kartlar || []).forEach(k => {
-    const limit = netLim(k.id, limitAy); 
-    const kg = parseInt(k.kesim) || 1;
-    const [y, m_num] = m.split('-').map(Number); // m: "2026-03"
+// --- rP3 Fonksiyonu İçindeki Kart Döngüsü Başlangıcı ---
+    (S.kartlar || []).forEach(k => {
+        const limit = netLim(k.id, limitAy); 
+        const kg = parseInt(k.kesim) || 1;
+        const [y, m_num] = m.split('-').map(Number); // m: "2026-03"
 
-    let startStr, endStr;
+        let startStr, endStr;
 
-    if (kg > 20) {
-        // --- BONUS (27) GİBİ AY SONU KESİLENLER ---
-        // Mart Sayfası İçin: 27 Şubat - 26 Mart arası
-        let d_start = new Date(y, m_num - 2, kg); 
-        let d_end = new Date(y, m_num - 1, kg - 1);
-        startStr = d_start.toISOString().split('T')[0];
-        endStr = d_end.toISOString().split('T')[0];
-    } else {
-        // --- WORLD/MAXIMUM (6) GİBİ AY BAŞI KESİLENLER ---
-        // Mart Sayfası İçin: 6 Mart - 5 Nisan arası
-        let d_start = new Date(y, m_num - 1, kg);
-        let d_end = new Date(y, m_num, kg - 1);
-        startStr = d_start.toISOString().split('T')[0];
-        endStr = d_end.toISOString().split('T')[0];
-    }
+        if (kg > 20) {
+            // BONUS (27) Mantığı: 27 Şubat - 26 Mart arası
+            let d_start = new Date(y, m_num - 2, kg); 
+            let d_end = new Date(y, m_num - 1, kg - 1);
+            startStr = d_start.toISOString().split('T')[0];
+            endStr = d_end.toISOString().split('T')[0];
+        } else {
+            // WORLD/MAXIMUM (6) Mantığı: 6 Mart - 5 Nisan arası
+            let d_start = new Date(y, m_num - 1, kg);
+            let d_end = new Date(y, m_num, kg - 1);
+            startStr = d_start.toISOString().split('T')[0];
+            endStr = d_end.toISOString().split('T')[0];
+        }
 
-    const ayIslemler = (S.txns || []).filter(t => {
-        // 1. Sadece bu kartın giderleri
-        if (t.tip !== 'r' || t.kartId !== k.id) return false;
+        // FİLTRELEME: Mükerrer kaydı önleyen temiz filtre
+        const ayIslemler = (S.txns || []).filter(t => {
+            return t.tip === 'r' && t.kartId === k.id && t.tarih >= startStr && t.tarih <= endStr;
+        }); // <--- HATA BURADAYDI, KAPATILDI.
 
-        // 2. KESİN KURAL: Tarih bu banka döngüsü aralığındaysa göster.
-        // ekstreAy etiketini burada yok sayıyoruz (mükerrerliği bitirmek için).
-        return t.tarih >= startStr && t.tarih <= endStr;
-    });
+        const ayTaksitler = (S.kartTaksit || []).filter(kt => kt.kartId === k.id && kt.baslangicAy <= m && addM(kt.baslangicAy, kt.taksitSayisi - 1) >= m);
+        const borc = ayIslemler.reduce((s, t) => s + t.tutar, 0) + ayTaksitler.reduce((s, kt) => s + kt.aylikTutar, 0);
+        const kalan = limit - borc;
+        const pct = limit > 0 ? Math.min(100, Math.round(borc / limit * 100)) : 0;
+        const pbCol = pct > 90 ? 'var(--R)' : pct > 70 ? 'var(--A)' : 'var(--G)';
 
-    // 3. YEDEK KURAL: Eğer ekstreAy tanımlanmamışsa (eski kayıtlar vb.), 
-    // o zaman senin belirlediğin tarih aralığına baksın.
-    return t.tarih >= startStr && t.tarih <= endStr;
-});
-    const ayTaksitler=(S.kartTaksit||[]).filter(kt=>kt.kartId===k.id&&kt.baslangicAy<=m&&addM(kt.baslangicAy,kt.taksitSayisi-1)>=m);
-    const borc = ayIslemler.reduce((s, t) => s + t.tutar, 0) + ayTaksitler.reduce((s, kt) => s + kt.aylikTutar, 0);
-    const kalan = limit - borc;
-    const pct = limit > 0 ? Math.min(100, Math.round(borc / limit * 100)) : 0;
-    const pbCol = pct > 90 ? 'var(--R)' : pct > 70 ? 'var(--A)' : 'var(--G)';
+        // ... geri kalan HTML birleştirme kodların buraya gelecek
     
     html+=`<div class="kp">
       <div class="kp-h">
