@@ -639,34 +639,23 @@ function rP3(){
     }
   }
 
-  // --- AY SEÇİCİ GÖRSELİ ---
-  let html = `<div class="ay-selector" style="display:flex; overflow-x:auto; gap:10px; padding:15px 10px; background:var(--bg2); border-bottom:1px solid var(--b); scrollbar-width:none; -webkit-overflow-scrolling:touch;">`;
-  
-  aylarListesi.forEach(ay => {
-    const isSel = (ay === m);
-    html += `
-    <div onclick="m='${ay}'; rP3(); if(typeof rAll !== 'undefined') rAll();" 
-         style="flex:0 0 auto; padding:8px 16px; border-radius:20px; font-size:13px; cursor:pointer;
-                background:${isSel ? 'var(--accent)' : 'var(--bg)'}; 
-                color:${isSel ? '#fff' : 'var(--t2)'};
-                border:1px solid ${isSel ? 'var(--accent)' : 'var(--b)'};
-                font-weight:${isSel ? '600' : '400'}; transition:all 0.2s;
-                position:relative; z-index:10;">
-      ${mLbl(ay)}
-    </div>`;
-  });
-  html += `</div>`;
+let html = `
+  <div class="mnav">
+    <button onclick="prevM(); rP3();">‹</button>
+    <div class="mname">${mLbl(m)}</div>
+    <button onclick="nextM(); rP3();">›</button>
+  </div>`;
 
-  // Bilgi Notu ve Başlık (Senin görsellerine göre ayarlandı)
+  // Bilgi Notu (Sarı Kutu)
   html += `
   <div class="ph" style="padding-top:10px">
-    <div class="pt">Kart Harcamaları — ${mLbl(m)}</div>
+    <div class="pt">Kart Harcamaları</div>
   </div>
   <div class="info" style="font-size:11px; margin:10px; background:rgba(255,193,7,0.1); border:1px solid rgba(255,193,7,0.2); color:#ffc107; padding:10px; border-radius:8px;">
     <strong>Planlama:</strong> Bu aydaki harcamalar <strong>${mLbl(limitAy)}</strong> Ana Tablo bütçesinden düşer.
   </div>`;
 
-  // ... (Geri kalan (S.kartlar||[]).forEach döngün aynen devam etsin)
+  // ... (Geri kalan kart döngüsü (S.kartlar||[]).forEach... aynı kalıyor)
 
   (S.kartlar||[]).forEach(k=>{
     const limit=netLim(k.id,limitAy); // Ana tablo limiti (referans için)
