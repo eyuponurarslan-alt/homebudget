@@ -625,37 +625,47 @@ function delDG(id){if(!confirm('Silinsin mi?'))return;S.duzenli=S.duzenli.filter
 function rP3(){
   const m=curM();
   const limitAy = addM(m, 1);
- // --- AY SEÇİCİ (ANA TABLO STİLİNDE) ---
-  // Eğer S.aylar boşsa, Ana Tablo'nun kullandığı listeyi manuel oluşturuyoruz
-  const aylarListesi = (S.aylar && S.aylar.length > 0) ? S.aylar : generateAylarListesi(); 
+ // --- HATA ALMAYACAK AY LİSTESİ OLUŞTURUCU ---
+  // S.aylar yoksa, S.txns içindeki ayları veya mevcut ayı baz alarak güvenli bir liste kurar
+  let aylarListesi = S.aylar || [];
+  
+  if (aylarListesi.length === 0) {
+    // Eğer S.aylar boşsa, sistemi çökertmemek için manuel 12 aylık bir liste oluşturuyoruz
+    let d = new Date();
+    d.setMonth(d.getMonth() - 5);
+    for(let i=0; i<12; i++) {
+      aylarListesi.push(d.toISOString().slice(0,7));
+      d.setMonth(d.getMonth() + 1);
+    }
+  }
 
-  let html = `<div class="ay-selector-wrapper" style="background:var(--bg2); padding:10px 0; border-bottom:1px solid var(--b); overflow-x:auto; white-space:nowrap; display:flex; justify-content:center; gap:8px; -webkit-overflow-scrolling:touch;">`;
+  // --- AY SEÇİCİ GÖRSELİ ---
+  let html = `<div class="ay-selector" style="display:flex; overflow-x:auto; gap:10px; padding:15px 10px; background:var(--bg2); border-bottom:1px solid var(--b); scrollbar-width:none; -webkit-overflow-scrolling:touch;">`;
   
   aylarListesi.forEach(ay => {
     const isSel = (ay === m);
     html += `
     <div onclick="setM('${ay}'); rP3();" 
-         class="ay-item ${isSel ? 'active' : ''}"
-         style="flex:0 0 auto; padding:6px 14px; border-radius:15px; cursor:pointer; font-size:13px;
-                background:${isSel ? 'var(--accent)' : 'rgba(255,255,255,0.05)'}; 
-                color:${isSel ? '#000' : 'var(--t2)'}; 
-                font-weight:${isSel ? 'bold' : 'normal'}; 
-                border:1px solid ${isSel ? 'var(--accent)' : 'transparent'};">
+         style="flex:0 0 auto; padding:8px 16px; border-radius:20px; font-size:13px; cursor:pointer;
+                background:${isSel ? 'var(--accent)' : 'var(--bg)'}; 
+                color:${isSel ? '#fff' : 'var(--t2)'};
+                border:1px solid ${isSel ? 'var(--accent)' : 'var(--b)'};
+                font-weight:${isSel ? '600' : '400'}; transition:all 0.2s;">
       ${mLbl(ay)}
     </div>`;
   });
   html += `</div>`;
 
-  // Mevcut başlık ve bilgi notu (Görseldeki sarı kutu)
+  // Bilgi Notu ve Başlık (Senin görsellerine göre ayarlandı)
   html += `
-  <div class="ph" style="padding-top:15px">
+  <div class="ph" style="padding-top:10px">
     <div class="pt">Kart Harcamaları — ${mLbl(m)}</div>
   </div>
-  <div class="info" style="font-size:11px; margin:10px; background:rgba(255,193,7,0.1); border:1px solid rgba(255,193,7,0.2); color:#ffc107; padding:8px; border-radius:5px;">
-    <strong>Planlama:</strong> Bu aydaki harcamalar <strong>${mLbl(limitAy)}</strong> Ana Tablo limitinden düşer.
+  <div class="info" style="font-size:11px; margin:10px; background:rgba(255,193,7,0.1); border:1px solid rgba(255,193,7,0.2); color:#ffc107; padding:10px; border-radius:8px;">
+    <strong>Planlama:</strong> Bu aydaki harcamalar <strong>${mLbl(limitAy)}</strong> Ana Tablo bütçesinden düşer.
   </div>`;
 
-  // ... döngü devamı ...
+  // ... (Geri kalan (S.kartlar||[]).forEach döngün aynen devam etsin)
 
   (S.kartlar||[]).forEach(k=>{
     const limit=netLim(k.id,limitAy); // Ana tablo limiti (referans için)
