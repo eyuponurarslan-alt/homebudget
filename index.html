@@ -645,7 +645,7 @@ function rP3(){
   aylarListesi.forEach(ay => {
     const isSel = (ay === m);
     html += `
-    <div onclick="curM = () => '${ay}'; rP3(); if(typeof rAll !== 'undefined') rAll();" 
+    <div onclick="m='${ay}'; rP3(); if(typeof rAll !== 'undefined') rAll();" 
          style="flex:0 0 auto; padding:8px 16px; border-radius:20px; font-size:13px; cursor:pointer;
                 background:${isSel ? 'var(--accent)' : 'var(--bg)'}; 
                 color:${isSel ? '#fff' : 'var(--t2)'};
