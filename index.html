@@ -212,6 +212,12 @@ select option{background:var(--bg3)}
     <div id="p3" class="pg"></div>
     <div id="p4" class="pg"></div>
     <div id="p5" class="pg"></div>
+    <div id="p6" class="pg"></div>
+
+<div class="tb" onclick="gT(6, this)">
+  <i class="fas fa-chart-line"></i>
+  <span>Yatırım</span>
+</div>
   </div>
   <button id="fab" onclick="openQ()">
     <svg viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -959,15 +965,14 @@ function addKart(){
   S.kartlar.push({id:'k'+Date.now(),ad,kesim});sv();rP5();rP1();
 }
 function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP5();rP1();}
-
-<div id="p6" class="pg"></div>
-
-<div class="tb" onclick="gT(6, this)">
-  <i class="fas fa-chart-line"></i>
-  <span>Yatırım</span>
-</div>
-  function rP6() {
-    const target = document.getElementById('p6'); // gT yapısına uygun hedef
+  
+/* ══════════════════════════════════════
+    rP6 — YATIRIM & VARLIKLAR
+══════════════════════════════════════ */
+function rP6() {
+    const target = document.getElementById('p6');
+    if (!S.yatirimlar) S.yatirimlar = [];
+    
     let html = `
     <div class="p-3 pb-5">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -975,138 +980,41 @@ function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar
             <button class="btn btn-outline-warning btn-sm" onclick="showYatirimForm()">
                 <i class="fas fa-plus me-1"></i>Ekle
             </button>
-      </div>
+        </div>
         <div id="yatirimListContainer">
             ${renderYatirimList()}
         </div>
     </div>`;
-    }
     target.innerHTML = html;
-    function showYatirimForm() {
-    let html = `
-    <div id="modalOverlay" class="p-3 bg-dark" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;overflow-y:auto;">
-        <div class="d-flex justify-content-between mb-4">
-            <h4 class="text-warning">Yeni Yatırım Ekle</h4>
-            <button class="btn btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
-        </div>
-
-        <div class="mb-3">
-            <label class="text-secondary small">Varlık Türü</label>
-            <select id="yTip" class="form-select bg-dark text-white border-secondary" onchange="toggleYatirimFields()">
-                <option value="altin">Altın</option>
-                <option value="mevduat">Vadeli Mevduat (Faiz)</option>
-                <option value="doviz">Döviz (USD/EUR)</option>
-            </select>
-        </div>
-
-        <div id="yFields"></div>
-
-        <button class="btn btn-warning w-100 mt-4 p-3 shadow" onclick="saveYatirim()">Veriyi Kaydet</button>
-    </div>`;
-    
-    document.body.insertAdjacentHTML('beforeend', html);
-    toggleYatirimFields(); 
 }
 
-function toggleYatirimFields() {
-    const tip = document.getElementById('yTip').value;
-    const div = document.getElementById('yFields');
-    
-    if (tip === 'altin') {
-        div.innerHTML = `
-            <div class="mb-3">
-                <label class="text-secondary small">Altın Kategorisi</label>
-                <select id="yAltTip" class="form-select bg-dark text-white border-secondary">
-                    <option value="bilezik_22">22 Ayar Bilezik (Gram)</option>
-                    <option value="gram_24">24 Ayar Gram</option>
-                    <option value="ceyrek">Çeyrek (Adet)</option>
-                    <option value="ata">Ata / Cumhuriyet (Adet)</option>
-                    <option value="tam">Tam Altın (Adet)</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="text-secondary small">Miktar</label>
-                <input type="number" id="yMiktar" class="form-control bg-dark text-white border-secondary" placeholder="Örn: 10">
-            </div>`;
-    } else if (tip === 'mevduat') {
-        div.innerHTML = `
-            <div class="mb-3">
-                <label class="text-secondary small">Toplam Ana Para (TL)</label>
-                <input type="number" id="yAnaPara" class="form-control bg-dark text-white border-secondary" placeholder="15000">
-            </div>
-            <div class="mb-3">
-                <label class="text-secondary small">Faiz İşleyecek Tutar (Matrah)</label>
-                <input type="number" id="yFaizliTutar" class="form-control bg-dark text-white border-secondary" placeholder="12500">
-            </div>
-            <div class="row g-2">
-                <div class="col-6 mb-3"><label class="text-secondary small">Brüt Faiz (%)</label><input type="number" id="yOran" class="form-control bg-dark text-white border-secondary"></div>
-                <div class="col-6 mb-3"><label class="text-secondary small">Vade (Gün)</label><input type="number" id="yGun" class="form-control bg-dark text-white border-secondary"></div>
-            </div>
-            <div class="mb-3">
-                <label class="text-secondary small">Stopaj (%)</label>
-                <input type="number" id="yStopaj" class="form-control bg-dark text-white border-secondary" value="5">
-            </div>`;
-}
-  function saveYatirim() {
-    const tip = document.getElementById('yTip').value;
-    const t = new Date().toISOString().split('T')[0];
-    let data = { id: Date.now(), tip: tip, tarih: t };
-
-    if (tip === 'mevduat') {
-        const ap = parseFloat(document.getElementById('yAnaPara').value) || 0;
-        const ft = parseFloat(document.getElementById('yFaizliTutar').value) || 0;
-        const or = parseFloat(document.getElementById('yOran').value) || 0;
-        const gn = parseFloat(document.getElementById('yGun').value) || 0;
-        const st = parseFloat(document.getElementById('yStopaj').value) || 0;
-
-        const brut = (ft * or * gn) / 36500;
-        const netKazanc = brut * (1 - st / 100);
-        
-        data.anaPara = ap;
-        data.matrah = ft;
-        data.netGetiri = netKazanc.toFixed(2);
-        data.vadeSonuToplam = (ap + netKazanc).toFixed(2);
-        data.vadeGun = gn;
-    } else {
-        data.altTip = document.getElementById('yAltTip').value;
-        data.miktar = parseFloat(document.getElementById('yMiktar').value) || 0;
-    }
-
-    // Firebase Kayıt (S.yatirimlar dizisine ekle)
-    if(!S.yatirimlar) S.yatirimlar = [];
-    S.yatirimlar.push(data);
-    
-    // Veritabanına gönder (Kendi firebase set fonksiyonunu kullan)
-    set(ref(db, 'users/' + uid + '/yatirimlar'), S.yatirimlar).then(() => {
-        document.getElementById('modalOverlay').remove();
-        rP6(); // Sayfayı yenile
-    });
-}
-  function renderYatirimList() {
-    if (!S.yatirimlar || S.yatirimlar.length === 0) return `<div class="text-center text-secondary mt-5">Henüz yatırım kaydı yok.</div>`;
+// 1. LİSTELEME FONKSİYONU
+function renderYatirimList() {
+    if (!S.yatirimlar || S.yatirimlar.length === 0) return `<div class="text-center text-secondary mt-5 small">Henüz bir varlık eklenmedi.</div>`;
     
     return S.yatirimlar.map(y => {
         if (y.tip === 'mevduat') {
             return `
             <div class="card bg-dark border-secondary mb-2 p-2">
-                <div class="d-flex justify-content-between">
-                    <b class="text-info"><i class="fas fa-university me-2"></i>Mevduat</b>
-                    <small class="text-secondary">${y.tarih}</small>
+                <div class="d-flex justify-content-between border-bottom border-secondary pb-1 mb-1">
+                    <b class="text-info small"><i class="fas fa-university me-1"></i>Mevduat</b>
+                    <small class="text-secondary" style="font-size:10px">${y.tarih}</small>
                 </div>
-                <div class="small mt-1">
-                    Yatırılan: <b>${y.anaPara} TL</b> | Net Getiri: <b class="text-success">+${y.netGetiri} TL</b><br>
-                    Vade Sonu: <b class="text-warning">${y.vadeSonuToplam} TL</b> (${y.vadeGun} Gün)
+                <div class="small">
+                    Ana Para: <b>${y.anaPara} TL</b> <br>
+                    Net Getiri: <b class="text-success">+${y.netGetiri} TL</b><br>
+                    Vade Sonu: <b class="text-warning">${y.vadeSonuToplam} TL</b>
                 </div>
             </div>`;
         } else {
-            const isimler = { "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek", "ata": "Ata", "tam": "Tam" };
+            const isimler = { "bilezik_22": "22K Bilezik", "gram_24": "24K Gram", "ceyrek": "Çeyrek", "ata": "Ata" };
             return `
             <div class="card bg-dark border-secondary mb-2 p-2">
-                <div class="d-flex justify-content-between">
-                    <b class="text-warning"><i class="fas fa-coins me-2"></i>${isimler[y.altTip] || 'Altın'}</b>
-                    <small class="text-secondary">${y.tarih}</small>
+                <div class="d-flex justify-content-between border-bottom border-secondary pb-1 mb-1">
+                    <b class="text-warning small"><i class="fas fa-coins me-1"></i>${isimler[y.altTip] || 'Altın'}</b>
+                    <small class="text-secondary" style="font-size:10px">${y.tarih}</small>
                 </div>
-                <div class="small mt-1">Miktar: <b>${y.miktar} ${y.altTip.includes('gram') || y.altTip.includes('bilezik') ? 'gr' : 'Adet'}</b></div>
+                <div class="small">Miktar: <b>${y.miktar} ${y.altTip.includes('gr') ? 'gr' : 'Adet'}</b></div>
             </div>`;
         }
     }).join('');
