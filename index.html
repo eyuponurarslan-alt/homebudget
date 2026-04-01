@@ -975,7 +975,7 @@ function addKart(){
 function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP5();rP1();}
   
 /* ══════════════════════════════════════════════════════════════
-    YATIRIM SAYFASI (P6) - TAMİR EDİLMİŞ VE GELİŞTİRİLMİŞ VERSİYON
+    YATIRIM SAYFASI (P6) - EXCEL UYUMLU GÜNLÜK KATLAMALI VERSİYON
    ══════════════════════════════════════════════════════════════ */
 
 const GOLD_WEIGHTS = {
@@ -993,7 +993,20 @@ function rP6() {
     if (!S.portfoy.varlik) S.portfoy.varlik = { altin: 0, usd: 0, eur: 0 };
     if (!S.portfoy.varlik_gecmis) S.portfoy.varlik_gecmis = [];
     
-    let mevduatToplam = S.portfoy.mevduat.reduce((a, b) => a + parseFloat(b.vadeSonuToplam || 0), 0);
+    // --- GÜNLÜK KATLAMALI TOPLAM HESABI ---
+    let mevduatToplam = S.portfoy.mevduat.reduce((toplam, m) => {
+        const baslangic = new Date(m.tarihRaw);
+        const bugun = new Date();
+        const gunFarki = Math.floor((bugun - baslangic) / 86400000);
+        
+        if (gunFarki > 0) {
+            // Net Günlük Oran = (Brüt Oran / 36500) * (1 - Stopaj/100)
+            const gunlukNetOran = (m.oran / 36500) * (1 - (m.stopaj / 100));
+            // Bileşik Faiz Formülü: Ana Para * (1 + Oran)^Gün
+            return toplam + (m.anaPara * Math.pow((1 + gunlukNetOran), gunFarki));
+        }
+        return toplam + m.anaPara;
+    }, 0);
 
     target.innerHTML = `
     <div style="padding: 20px; color: white; font-family: sans-serif; padding-bottom: 100px;">
@@ -1001,10 +1014,10 @@ function rP6() {
 
         <div style="background: rgba(13, 202, 240, 0.05); border: 1px solid #0dcaf0; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#0dcaf0; font-weight:bold;">🏦 Mevduat Hesabı</span>
+                <span style="color:#0dcaf0; font-weight:bold;">🏦 Mevduat Hesabı (Günlük)</span>
                 <button onclick="openAccModal('mevduat')" style="background:#0dcaf0; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Para Ekle</button>
             </div>
-            <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${mevduatToplam.toLocaleString('tr-TR')} TL</div>
+            <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${mevduatToplam.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
             <div style="margin-top:10px;">${renderMevduatList()}</div>
         </div>
 
@@ -1038,14 +1051,25 @@ function rP6() {
 
 function renderMevduatList() {
     if (!S.portfoy.mevduat || !S.portfoy.mevduat.length) return `<div style="color:gray; font-size:11px;">Kayıt yok.</div>`;
-    return S.portfoy.mevduat.map(m => `
+    return S.portfoy.mevduat.map(m => {
+        const baslangic = new Date(m.tarihRaw);
+        const bugun = new Date();
+        const gunFarki = Math.floor((bugun - baslangic) / 86400000);
+        let guncel = m.anaPara;
+        if(gunFarki > 0) {
+            const gunlukNetOran = (m.oran / 36500) * (1 - (m.stopaj / 100));
+            guncel = m.anaPara * Math.pow((1 + gunlukNetOran), gunFarki);
+        }
+        
+        return `
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid rgba(255,255,255,0.05); font-size:12px;">
             <div style="flex:1">
-                <div style="font-weight:bold;">${Number(m.vadeSonuToplam).toLocaleString('tr-TR')} TL</div>
-                <div style="font-size:10px; color:gray;">${m.basTarih} > ${m.vadeTarihi} (%${m.oran})</div>
+                <div style="font-weight:bold;">${Number(guncel).toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
+                <div style="font-size:10px; color:gray;">Başlangıç: ${m.basTarih} (${gunFarki} Gün) %${m.oran}</div>
             </div>
             <span onclick="deletePortfItem('mevduat','${m.id}')" style="color:#666; cursor:pointer; padding:5px;">&times;</span>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 function openAccModal(tip) {
@@ -1054,16 +1078,14 @@ function openAccModal(tip) {
     
     if (tip === 'mevduat') {
         f = `
-        <label style="font-size:11px; color:gray;">BAŞLANGIÇ TARİHİ</label>
+        <label style="font-size:11px; color:gray;">PARANIN YATTIĞI TARİH</label>
         <input type="date" id="yBasT" value="${new Date().toISOString().split('T')[0]}" style="${s}">
         <label style="font-size:11px; color:gray;">ANA PARA (TL)</label>
         <input type="number" id="yAna" placeholder="0.00" style="${s}">
         <div style="display:flex; gap:10px;">
-            <div style="flex:1"><label style="font-size:11px; color:gray;">FAİZ %</label><input type="number" id="yOr" value="45" style="${s}"></div>
+            <div style="flex:1"><label style="font-size:11px; color:gray;">BRÜT FAİZ %</label><input type="number" id="yOr" value="45" style="${s}"></div>
             <div style="flex:1"><label style="font-size:11px; color:gray;">STOPAJ %</label><input type="number" id="ySt" value="7.5" style="${s}"></div>
-        </div>
-        <label style="font-size:11px; color:gray;">VADE SONU TARİHİ</label>
-        <input type="date" id="yVa" style="${s}">`;
+        </div>`;
     } 
     else if (tip === 'borsa') {
         f = `
@@ -1112,20 +1134,15 @@ function saveAcc(tip) {
     if (tip === 'mevduat') {
         const ana = parseFloat(document.getElementById('yAna').value) || 0;
         const oran = parseFloat(document.getElementById('yOr').value) || 0;
-        const stopaj = parseFloat(document.getElementById('ySt').value) || 0;
+        const stopaj = parseFloat(document.getElementById('ySt').value) || 7.5;
         const basT = document.getElementById('yBasT').value;
-        const vadeT = document.getElementById('yVa').value;
-        
-        const gun = Math.ceil((new Date(vadeT) - new Date(basT)) / 86400000) || 1;
-        const brutFaiz = (ana * oran * gun) / 36500;
-        const netFaiz = brutFaiz * (1 - (stopaj / 100));
         
         S.portfoy.mevduat.push({ 
             id: 'm'+Date.now(), 
-            vadeSonuToplam: (ana + netFaiz).toFixed(2), 
-            basTarih: basT.split('-').reverse().join('.'),
-            vadeTarihi: vadeT.split('-').reverse().join('.'), 
+            anaPara: ana,
             oran: oran,
+            stopaj: stopaj,
+            basTarih: basT.split('-').reverse().join('.'),
             tarihRaw: basT
         });
     } 
