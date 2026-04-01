@@ -975,18 +975,20 @@ function addKart(){
 function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar.filter(k=>k.id!==id);sv();rP5();rP1();}
   
 /* ══════════════════════════════════════════════════════════════
-    YATIRIM SAYFASI (P6) - 3 HESAPLI SİSTEM (GÜVENLİ VERSİYON)
+    YATIRIM SAYFASI (P6) - GELİŞMİŞ PORTFÖY YÖNETİMİ
    ══════════════════════════════════════════════════════════════ */
+
+// Sabit Gram Değerleri (Altın birimleri için)
+const GOLD_WEIGHTS = {
+    "gram_24": 1, "gram_22": 0.916, "ceyrek": 1.75, "yarim": 3.50, 
+    "tam": 7.01, "ata": 7.21, "bilezik_22": 1 // Bilezik seçilince gram ayrıca sorulacak
+};
 
 function rP6() {
     const target = document.getElementById('p6');
     if (!target) return;
 
-    // Veri yapısı kontrolü (Hata almamak için kritik)
-    if (!S.portfoy) S.portfoy = { mevduat: [], borsa: [], varlik: { altin: 0, usd: 0, eur: 0 } };
-    if (!S.portfoy.mevduat) S.portfoy.mevduat = [];
-    if (!S.portfoy.borsa) S.portfoy.borsa = [];
-    if (!S.portfoy.varlik) S.portfoy.varlik = { altin: 0, usd: 0, eur: 0 };
+    if (!S.portfoy) S.portfoy = { mevduat: [], borsa: [], varlik: { altin: 0, usd: 0, eur: 0 }, varlik_gecmis: [] };
     
     let mevduatToplam = S.portfoy.mevduat.reduce((a, b) => a + parseFloat(b.vadeSonuToplam || 0), 0);
 
@@ -997,7 +999,7 @@ function rP6() {
         <div style="background: rgba(13, 202, 240, 0.05); border: 1px solid #0dcaf0; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="color:#0dcaf0; font-weight:bold;">🏦 Mevduat Hesabı</span>
-                <button onclick="openAccModal('mevduat')" style="background:#0dcaf0; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Ekle</button>
+                <button onclick="openAccModal('mevduat')" style="background:#0dcaf0; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Para Ekle</button>
             </div>
             <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${mevduatToplam.toLocaleString('tr-TR')} TL</div>
             <div style="margin-top:10px;">${renderMevduatList()}</div>
@@ -1017,100 +1019,148 @@ function rP6() {
                 <button onclick="openAccModal('varlik')" style="background:#20c997; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Güncelle</button>
             </div>
             <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                <div style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px;">
-                    <div style="font-size:10px; color:gray;">ALTIN</div><div style="font-weight:bold;">${S.portfoy.varlik.altin || 0}g</div>
+                <div onclick="showVarlikGecmis('altin')" style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; cursor:pointer;">
+                    <div style="font-size:10px; color:gray;">ALTIN</div><div style="font-weight:bold;">${Number(S.portfoy.varlik.altin).toFixed(2)}g</div>
                 </div>
-                <div style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px;">
-                    <div style="font-size:10px; color:gray;">DOLAR</div><div style="font-weight:bold;">$${S.portfoy.varlik.usd || 0}</div>
+                <div onclick="showVarlikGecmis('usd')" style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; cursor:pointer;">
+                    <div style="font-size:10px; color:gray;">DOLAR</div><div style="font-weight:bold;">$${S.portfoy.varlik.usd}</div>
                 </div>
-                <div style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px;">
-                    <div style="font-size:10px; color:gray;">EURO</div><div style="font-weight:bold;">€${S.portfoy.varlik.eur || 0}</div>
+                <div onclick="showVarlikGecmis('eur')" style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; cursor:pointer;">
+                    <div style="font-size:10px; color:gray;">EURO</div><div style="font-weight:bold;">€${S.portfoy.varlik.eur}</div>
                 </div>
             </div>
         </div>
     </div>`;
 }
 
-// --- YARDIMCI RENDERER'LAR ---
 function renderMevduatList() {
     if (!S.portfoy.mevduat || !S.portfoy.mevduat.length) return `<div style="color:gray; font-size:11px;">Kayıt yok.</div>`;
     return S.portfoy.mevduat.map(m => `
-        <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid rgba(255,255,255,0.05); font-size:12px;">
-            <span>${m.tarih}</span><span><b>${Number(m.vadeSonuToplam).toLocaleString('tr-TR')} TL</b></span>
-            <span onclick="deletePortfItem('mevduat','${m.id}')" style="color:#666; cursor:pointer;">&times;</span>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid rgba(255,255,255,0.05); font-size:12px;">
+            <div style="flex:1">
+                <div style="font-weight:bold;">${Number(m.vadeSonuToplam).toLocaleString('tr-TR')} TL</div>
+                <div style="font-size:10px; color:gray;">Vade: ${m.vadeTarihi} | %${m.oran}</div>
+            </div>
+            <span onclick="deletePortfItem('mevduat','${m.id}')" style="color:#666; cursor:pointer; padding:5px;">&times;</span>
         </div>`).join('');
 }
 
-function renderBorsaItems() {
-    if (!S.portfoy.borsa || !S.portfoy.borsa.length) return `<div style="color:gray; font-size:11px; margin-top:10px;">İşlem yok.</div>`;
-    const ozet = {};
-    S.portfoy.borsa.forEach(i => {
-        if (!ozet[i.ad]) ozet[i.ad] = { adet: 0, maliyet: 0 };
-        ozet[i.ad].adet += parseFloat(i.adet);
-        ozet[i.ad].maliyet += (parseFloat(i.adet) * parseFloat(i.fiyat));
-    });
-    return Object.keys(ozet).map(ad => {
-        const h = ozet[ad];
-        return `<div onclick="showBorsaDetail('${ad}')" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-top:10px; border:1px solid #333; cursor:pointer;">
-            <div style="display:flex; justify-content:space-between;"><b>${ad}</b><span>${h.adet} Adet</span></div>
-            <div style="display:flex; justify-content:space-between; font-size:11px; color:gray; margin-top:5px;">
-                <span>Maliyet: ${(h.maliyet / h.adet).toFixed(2)} TL</span><span>Detay ></span>
-            </div>
-        </div>`;
-    }).join('');
-}
-
-// --- MODALLAR ---
 function openAccModal(tip) {
     let f = '';
     const s = `width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:12px; margin-bottom:12px; box-sizing:border-box;`;
-    if (tip === 'mevduat') f = `<input type="number" id="yAna" placeholder="Tutar (TL)" style="${s}"><input type="number" id="yOr" value="45" style="${s}"><input type="date" id="yVa" style="${s}">`;
-    else if (tip === 'borsa') f = `<input type="text" id="bAd" placeholder="Hisse (THYAO vb.)" style="${s} text-transform:uppercase;"><input type="number" id="bAdet" placeholder="Adet" style="${s}"><input type="number" id="bFi" placeholder="Fiyat" style="${s}">`;
-    else if (tip === 'varlik') f = `<select id="vT" style="${s}"><option value="altin">Altın</option><option value="usd">Dolar</option><option value="eur">Euro</option></select><input type="number" id="vM" placeholder="Miktar" style="${s}">`;
+    
+    if (tip === 'mevduat') {
+        f = `
+        <label style="font-size:11px; color:gray;">ANA PARA (TL)</label><input type="number" id="yAna" style="${s}">
+        <div style="display:flex; gap:10px;">
+            <div style="flex:1"><label style="font-size:11px; color:gray;">FAİZ %</label><input type="number" id="yOr" value="45" style="${s}"></div>
+            <div style="flex:1"><label style="font-size:11px; color:gray;">STOPAJ %</label><input type="number" id="ySt" value="7.5" style="${s}"></div>
+        </div>
+        <label style="font-size:11px; color:gray;">VADE SONU TARİHİ</label><input type="date" id="yVa" style="${s}">`;
+    } 
+    else if (tip === 'borsa') {
+        f = `<input type="text" id="bAd" placeholder="Hisse/Fon Kodu" style="${s} text-transform:uppercase;"><input type="number" id="bAdet" placeholder="Adet" style="${s}"><input type="number" id="bFi" placeholder="Alış Fiyatı" style="${s}">`;
+    } 
+    else if (tip === 'varlik') {
+        f = `
+        <select id="vT" onchange="toggleGoldOptions()" style="${s}">
+            <option value="altin">Altın</option><option value="usd">Dolar ($)</option><option value="eur">Euro (€)</option>
+        </select>
+        <div id="goldOpt">
+            <select id="vAltinTip" style="${s}">
+                <option value="gram_24">24K Gram</option><option value="ceyrek">Çeyrek</option><option value="yarim">Yarım</option>
+                <option value="tam">Tam</option><option value="ata">Ata Altın</option><option value="bilezik_22">22K Bilezik</option>
+            </select>
+        </div>
+        <input type="number" id="vM" placeholder="Miktar (Adet/Gram/Döviz)" style="${s}">`;
+    }
 
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="accModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:15000; padding:25px; backdrop-filter:blur(10px); box-sizing:border-box;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><h3>${tip.toUpperCase()}</h3><button onclick="document.getElementById('accModal').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button></div>
-        ${f}<button onclick="saveAcc('${tip}')" style="width:100%; background:var(--A); padding:16px; border:none; border-radius:12px; font-weight:bold;">KAYDET</button>
+    <div id="accModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:15000; padding:25px; backdrop-filter:blur(10px); box-sizing:border-box; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><h3>${tip.toUpperCase()} EKLE</h3><button onclick="document.getElementById('accModal').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button></div>
+        ${f}<button onclick="saveAcc('${tip}')" style="width:100%; background:var(--A); padding:16px; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">KAYDET</button>
     </div>`);
+}
+
+function toggleGoldOptions() {
+    const isAltin = document.getElementById('vT').value === 'altin';
+    document.getElementById('goldOpt').style.display = isAltin ? 'block' : 'none';
 }
 
 function saveAcc(tip) {
     if (tip === 'mevduat') {
-        const ana = parseFloat(document.getElementById('yAna').value);
-        const gun = Math.ceil((new Date(document.getElementById('yVa').value) - new Date()) / 86400000) || 30;
-        const netKar = (ana * parseFloat(document.getElementById('yOr').value) * gun) / 36500 * 0.95;
-        S.portfoy.mevduat.push({ id: 'm'+Date.now(), vadeSonuToplam: (ana + netKar).toFixed(2), tarih: new Date().toLocaleDateString('tr-TR') });
-    } else if (tip === 'borsa') {
+        const ana = parseFloat(document.getElementById('yAna').value) || 0;
+        const oran = parseFloat(document.getElementById('yOr').value) || 0;
+        const stopaj = parseFloat(document.getElementById('ySt').value) || 0;
+        const vade = document.getElementById('yVa').value;
+        
+        const gun = Math.ceil((new Date(vade) - new Date()) / 86400000) || 1;
+        const brutFaiz = (ana * oran * gun) / 36500;
+        const netFaiz = brutFaiz * (1 - (stopaj / 100));
+        
+        S.portfoy.mevduat.push({ 
+            id: 'm'+Date.now(), anaPara: ana, oran: oran, 
+            vadeSonuToplam: (ana + netFaiz).toFixed(2), 
+            vadeTarihi: vade.split('-').reverse().join('.'), tarih: new Date().toLocaleDateString('tr-TR') 
+        });
+    } 
+    else if (tip === 'borsa') {
         S.portfoy.borsa.push({ id: 'b'+Date.now(), ad: document.getElementById('bAd').value.toUpperCase(), adet: parseFloat(document.getElementById('bAdet').value), fiyat: parseFloat(document.getElementById('bFi').value), tarih: new Date().toLocaleDateString('tr-TR') });
-    } else if (tip === 'varlik') {
-        const vt = document.getElementById('vT').value;
-        S.portfoy.varlik[vt] = (S.portfoy.varlik[vt] || 0) + parseFloat(document.getElementById('vM').value);
+    } 
+    else if (tip === 'varlik') {
+        const tur = document.getElementById('vT').value;
+        const miktar = parseFloat(document.getElementById('vM').value) || 0;
+        let eklenenGram = miktar;
+
+        if (tur === 'altin') {
+            const altinTipi = document.getElementById('vAltinTip').value;
+            eklenenGram = miktar * GOLD_WEIGHTS[altinTipi];
+            S.portfoy.varlik.altin += eklenenGram;
+        } else {
+            S.portfoy.varlik[tur] += miktar;
+        }
+        
+        if(!S.portfoy.varlik_gecmis) S.portfoy.varlik_gecmis = [];
+        S.portfoy.varlik_gecmis.push({ id: 'v'+Date.now(), tur: tur, miktar: miktar, gramKarşılığı: eklenenGram, tarih: new Date().toLocaleDateString('tr-TR') });
     }
+    
     if(typeof sv === 'function') sv();
     document.getElementById('accModal').remove();
     rP6();
 }
 
-function showBorsaDetail(hisseAd) {
-    const list = S.portfoy.borsa.filter(x => x.ad === hisseAd);
-    let h = `<div id="detModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:16000; padding:20px; box-sizing:border-box;"><div style="display:flex; justify-content:space-between; margin-bottom:20px;"><h3>${hisseAd} Detay</h3><button onclick="document.getElementById('detModal').remove()" style="background:none; border:none; color:white; font-size:30px;">&times;</button></div>`;
-    list.forEach(i => h += `<div style="background:#111; padding:15px; border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;"><div><b>${i.adet} x ${i.fiyat} TL</b><br><small>${i.tarih}</small></div><button onclick="deletePortfItem('borsa','${i.id}')" style="color:#ff4444; background:none; border:none;">Sil</button></div>`);
+function showVarlikGecmis(tur) {
+    const list = (S.portfoy.varlik_gecmis || []).filter(x => x.tur === tur);
+    let h = `<div id="detModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:16000; padding:20px; box-sizing:border-box;"><div style="display:flex; justify-content:space-between; margin-bottom:20px;"><h3 style="color:var(--A);">${tur.toUpperCase()} Geçmişi</h3><button onclick="document.getElementById('detModal').remove()" style="background:none; border:none; color:white; font-size:30px;">&times;</button></div>`;
+    
+    if(!list.length) h += `<div style="color:gray;">Kayıt bulunamadı.</div>`;
+    list.forEach(i => {
+        h += `<div style="background:#111; padding:15px; border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #222;">
+            <div><b>${i.miktar} ${tur === 'altin' ? 'Birim/Gram' : tur.toUpperCase()}</b><br><small style="color:gray;">${i.tarih}</small></div>
+            <button onclick="deleteVarlikGecmis('${i.id}')" style="color:#ff4444; background:none; border:none; cursor:pointer;">Sil</button>
+        </div>`;
+    });
     document.body.insertAdjacentHTML('beforeend', h + '</div>');
 }
 
+function deleteVarlikGecmis(id) {
+    if(!confirm('Bu işlem varlık bakiyenizi de azaltacaktır. Silinsin mi?')) return;
+    const item = S.portfoy.varlik_gecmis.find(x => x.id === id);
+    if(item) {
+        if(item.tur === 'altin') S.portfoy.varlik.altin -= item.gramKarşılığı;
+        else S.portfoy.varlik[item.tur] -= item.miktar;
+        S.portfoy.varlik_gecmis = S.portfoy.varlik_gecmis.filter(x => x.id !== id);
+        if(typeof sv === 'function') sv();
+        document.getElementById('detModal').remove();
+        rP6();
+    }
+}
 function deletePortfItem(tip, id) {
     if(!confirm('Silinsin mi?')) return;
     if(tip === 'mevduat') S.portfoy.mevduat = S.portfoy.mevduat.filter(x => x.id !== id);
     else if(tip === 'borsa') S.portfoy.borsa = S.portfoy.borsa.filter(x => x.id !== id);
     if(typeof sv === 'function') sv();
     if(document.getElementById('detModal')) document.getElementById('detModal').remove();
-    rP6();
-}
-function delYatirim(id) {
-    if(!confirm('Silinsin mi?')) return;
-    S.yatirimlar = S.yatirimlar.filter(x => x.id !== id);
-    if(typeof sv === 'function') sv();
     rP6();
 }
 
