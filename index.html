@@ -1163,7 +1163,46 @@ function deletePortfItem(tip, id) {
     if(document.getElementById('detModal')) document.getElementById('detModal').remove();
     rP6();
 }
+function renderBorsaItems() {
+    if (!S.portfoy.borsa || !S.portfoy.borsa.length) return `<div style="color:gray; font-size:11px; margin-top:10px;">İşlem yok.</div>`;
+    
+    const ozet = {};
+    S.portfoy.borsa.forEach(i => {
+        if (!ozet[i.ad]) ozet[i.ad] = { adet: 0, maliyet: 0 };
+        ozet[i.ad].adet += parseFloat(i.adet);
+        ozet[i.ad].maliyet += (parseFloat(i.adet) * parseFloat(i.fiyat));
+    });
 
+    return Object.keys(ozet).map(ad => {
+        const h = ozet[ad];
+        return `
+        <div onclick="showBorsaDetail('${ad}')" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-top:10px; border:1px solid #333; cursor:pointer;">
+            <div style="display:flex; justify-content:space-between;"><b>${ad}</b><span>${h.adet} Adet</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:gray; margin-top:5px;">
+                <span>Ort. Maliyet: ${(h.maliyet / h.adet).toFixed(2)} TL</span><span>Detay ></span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function showBorsaDetail(hisseAd) {
+    const list = S.portfoy.borsa.filter(x => x.ad === hisseAd);
+    let h = `
+    <div id="detModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:16000; padding:20px; box-sizing:border-box; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h3 style="color:#ffc107; margin:0;">${hisseAd} Alım Geçmişi</h3>
+            <button onclick="document.getElementById('detModal').remove()" style="background:none; border:none; color:white; font-size:30px; cursor:pointer;">&times;</button>
+        </div>`;
+    
+    list.forEach(i => {
+        h += `
+        <div style="background:#111; padding:15px; border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #222;">
+            <div><b>${i.adet} Adet x ${i.fiyat} TL</b><br><small style="color:gray;">${i.tarih}</small></div>
+            <button onclick="deletePortfItem('borsa','${i.id}')" style="color:#ff4444; background:none; border:none; cursor:pointer;">Sil</button>
+        </div>`;
+    });
+    document.body.insertAdjacentHTML('beforeend', h + '</div>');
+}
 /* --- YARDIMCI FONKSİYONLAR VE KÖPRÜLER --- */
 
 // HATAYI ÇÖZEN SEÇENEK B:
