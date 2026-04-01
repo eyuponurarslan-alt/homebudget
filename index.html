@@ -977,7 +977,27 @@ function delKart(id){if(!confirm('Kart silinsin mi?'))return;S.kartlar=S.kartlar
 /* ══════════════════════════════════════════════════════════════
     YATIRIM SAYFASI (P6) - 3 HESAPLI PORTFÖY YÖNETİMİ
    ══════════════════════════════════════════════════════════════ */
+function rP6() {
+    const target = document.getElementById('p6');
+    
+    // HATA ÇÖZÜCÜ: Eğer S.portfoy yoksa veya içindekiler eksikse tanımla
+    if (!S.portfoy) {
+        S.portfoy = { 
+            mevduat: [], 
+            borsa: [], 
+            varlik: { altin: 0, usd: 0, eur: 0 } 
+        };
+    }
 
+    // Ek güvenlik: Eğer S.portfoy var ama alt kırılımları eksikse (örn: borsa yoksa)
+    if (!S.portfoy.mevduat) S.portfoy.mevduat = [];
+    if (!S.portfoy.borsa) S.portfoy.borsa = [];
+    if (!S.portfoy.varlik) S.portfoy.varlik = { altin: 0, usd: 0, eur: 0 };
+    
+    // Artık reduce hata vermeyecek çünkü mevduat en azından boş bir [] dizi.
+    let mevduatToplam = S.portfoy.mevduat.reduce((a, b) => a + parseFloat(b.vadeSonuToplam || 0), 0);
+
+    // ... geri kalan HTML kodların ...
 function rP6() {
     const target = document.getElementById('p6');
     // Yeni veri yapısı kontrolü
