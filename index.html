@@ -988,25 +988,36 @@ function rP6() {
     if (!target) return;
 
     if (!S.portfoy) S.portfoy = { mevduat: [], borsa: [], varlik: { altin: 0, usd: 0, eur: 0 }, varlik_gecmis: [] };
-    if (!S.portfoy.mevduat) S.portfoy.mevduat = [];
     if (!S.portfoy.borsa) S.portfoy.borsa = [];
     if (!S.portfoy.varlik) S.portfoy.varlik = { altin: 0, usd: 0, eur: 0 };
     if (!S.portfoy.varlik_gecmis) S.portfoy.varlik_gecmis = [];
     
-    // --- GÜNLÜK KATLAMALI TOPLAM HESABI ---
-    let mevduatToplam = S.portfoy.mevduat.reduce((toplam, m) => {
+   let mevduatGuncelBakiye = 0;
+    let gunFarki = 0;
+
+    // --- TEK HAVUZ GÜNLÜK KATLAMALI HESAPLAMA (MUAFİYETLİ) ---
+    if (S.portfoy.mevduat) {
+        const m = S.portfoy.mevduat;
         const baslangic = new Date(m.tarihRaw);
         const bugun = new Date();
-        const gunFarki = Math.floor((bugun - baslangic) / 86400000);
+        // Saat farkından etkilenmemek için gün farkı hesabı
+        gunFarki = Math.floor((bugun - baslangic) / 86400000);
         
+        const muafiyet = parseFloat(m.muafiyet) || 0;
+        const netGunlukOran = (m.oran / 36500) * (1 - (m.stopaj / 100));
+
         if (gunFarki > 0) {
-            // Net Günlük Oran = (Brüt Oran / 36500) * (1 - Stopaj/100)
-            const gunlukNetOran = (m.oran / 36500) * (1 - (m.stopaj / 100));
-            // Bileşik Faiz Formülü: Ana Para * (1 + Oran)^Gün
-            return toplam + (m.anaPara * Math.pow((1 + gunlukNetOran), gunFarki));
+            // Faiz sadece muafiyetten (Örn: 5000 TL) kalan tutara işletilir
+            const faizlenecekTutar = m.anaPara - muafiyet;
+            if (faizlenecekTutar > 0) {
+                mevduatGuncelBakiye = (faizlenecekTutar * Math.pow((1 + netGunlukOran), gunFarki)) + muafiyet;
+            } else {
+                mevduatGuncelBakiye = m.anaPara;
+            }
+        } else {
+            mevduatGuncelBakiye = m.anaPara;
         }
-        return toplam + m.anaPara;
-    }, 0);
+    }
 
     target.innerHTML = `
     <div style="padding: 20px; color: white; font-family: sans-serif; padding-bottom: 100px;">
@@ -1015,10 +1026,17 @@ function rP6() {
         <div style="background: rgba(13, 202, 240, 0.05); border: 1px solid #0dcaf0; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="color:#0dcaf0; font-weight:bold;">🏦 Mevduat Hesabı (Günlük)</span>
-                <button onclick="openAccModal('mevduat')" style="background:#0dcaf0; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Para Ekle</button>
+                <button onclick="openAccModal('mevduat')" style="background:#0dcaf0; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">Bakiyeyi Güncelle</button>
             </div>
-            <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${mevduatToplam.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
-            <div style="margin-top:10px;">${renderMevduatList()}</div>
+            <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${mevduatGuncelBakiye.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
+            ${S.portfoy.mevduat ? `
+                <div style="font-size: 11px; color: gray; margin-top: 5px;">
+                    Net Ana Para: ${S.portfoy.mevduat.anaPara.toLocaleString('tr-TR')} TL | Boşta: ${S.portfoy.mevduat.muafiyet} TL
+                </div>
+                <div style="font-size: 11px; color: #0dcaf0; margin-top: 2px;">
+                    ${gunFarki} Gündür İşliyor (Brüt %${S.portfoy.mevduat.oran})
+                </div>
+            ` : '<div style="color:gray; font-size:11px; margin-top:10px;">Hesap bilgisi girilmedi.</div>'}
         </div>
 
         <div style="background: rgba(255, 193, 7, 0.05); border: 1px solid #ffc107; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
@@ -1077,76 +1095,94 @@ function openAccModal(tip) {
     const s = `width:100%; padding:14px; background:#1a1a1a; border:1px solid #333; color:white; border-radius:12px; margin-bottom:12px; box-sizing:border-box; font-size:14px;`;
     
     if (tip === 'mevduat') {
+        // Mevcut veriyi çek, yoksa varsayılanları getir
+        const m = S.portfoy.mevduat || { anaPara: '', muafiyet: 5000, oran: 45, stopaj: 7.5, tarihRaw: new Date().toISOString().split('T')[0] };
+        
         f = `
-        <label style="font-size:11px; color:gray;">PARANIN YATTIĞI TARİH</label>
-        <input type="date" id="yBasT" value="${new Date().toISOString().split('T')[0]}" style="${s}">
-        <label style="font-size:11px; color:gray;">ANA PARA (TL)</label>
-        <input type="number" id="yAna" placeholder="0.00" style="${s}">
+        <label style="font-size:11px; color:gray; display:block; margin-bottom:4px;">TOPLAM ANA PARA (BANKADAKİ TUTAR)</label>
+        <input type="number" id="yAna" value="${m.anaPara}" placeholder="Örn: 24954.59" style="${s}">
+        
+        <label style="font-size:11px; color:gray; display:block; margin-bottom:4px;">VADEYE GİRMEYEN TUTAR (MUAFİYET)</label>
+        <input type="number" id="yMuaf" value="${m.muafiyet}" placeholder="Örn: 5000" style="${s}">
+        
         <div style="display:flex; gap:10px;">
-            <div style="flex:1"><label style="font-size:11px; color:gray;">BRÜT FAİZ %</label><input type="number" id="yOr" value="45" style="${s}"></div>
-            <div style="flex:1"><label style="font-size:11px; color:gray;">STOPAJ %</label><input type="number" id="ySt" value="7.5" style="${s}"></div>
-        </div>`;
+            <div style="flex:1">
+                <label style="font-size:11px; color:gray; display:block; margin-bottom:4px;">BRÜT FAİZ %</label>
+                <input type="number" id="yOr" value="${m.oran}" style="${s}">
+            </div>
+            <div style="flex:1">
+                <label style="font-size:11px; color:gray; display:block; margin-bottom:4px;">STOPAJ %</label>
+                <input type="number" id="ySt" value="${m.stopaj}" style="${s}">
+            </div>
+        </div>
+
+        <label style="font-size:11px; color:gray; display:block; margin-bottom:4px;">BAŞLANGIÇ / GÜNCELLEME TARİHİ</label>
+        <input type="date" id="yBasT" value="${m.tarihRaw}" style="${s}">
+        <p style="font-size:10px; color:orange; margin-top:-8px;">* Bakiyeyi güncellediğinizde tarihi bugüne çekmeyi unutmayın.</p>`;
     } 
     else if (tip === 'borsa') {
         f = `
-        <input type="text" id="bAd" placeholder="Hisse/Fon Kodu" style="${s} text-transform:uppercase;">
-        <input type="number" id="bAdet" placeholder="Adet" style="${s}">
-        <input type="number" id="bFi" placeholder="Alış Fiyatı" style="${s}">`;
+        <input type="text" id="bAd" placeholder="HİSSE / FON ADI (Örn: GARAN)" style="${s}">
+        <input type="number" id="bAdet" placeholder="ADET" style="${s}">
+        <input type="number" id="bFi" placeholder="ALIŞ FİYATI" style="${s}">`;
     } 
     else if (tip === 'varlik') {
         f = `
         <select id="vT" onchange="toggleGoldOptions()" style="${s}">
-            <option value="altin">Altın</option>
-            <option value="usd">Dolar ($)</option>
-            <option value="eur">Euro (€)</option>
+            <option value="altin">ALTIN</option>
+            <option value="usd">DOLAR ($)</option>
+            <option value="eur">EURO (€)</option>
         </select>
         <div id="goldOpt">
             <select id="vAltinTip" style="${s}">
-                <option value="gram_24">24K Gram</option>
-                <option value="ceyrek">Çeyrek</option>
-                <option value="yarim">Yarım</option>
-                <option value="tam">Tam</option>
-                <option value="ata">Ata Altın</option>
-                <option value="bilezik_22">22K Bilezik (Gram girin)</option>
+                <option value="has">HAS ALTIN (24K)</option>
+                <option value="ceyrek">ÇEYREK</option>
+                <option value="yarim">YARIM</option>
+                <option value="tam">TAM / CUMHURİYET</option>
             </select>
         </div>
-        <input type="number" id="vM" placeholder="Miktar / Adet" style="${s}">`;
+        <input type="number" id="vM" placeholder="MİKTAR (Gram / Adet / Döviz)" style="${s}">`;
     }
 
     const modalHtml = `
     <div id="accModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:15000; padding:25px; backdrop-filter:blur(10px); box-sizing:border-box; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h3 style="color:var(--A); margin:0;">${tip.toUpperCase()} EKLE</h3>
+            <h3 style="color:var(--A); margin:0;">${tip === 'mevduat' ? 'MEVDUAT GÜNCELLE' : tip.toUpperCase() + ' EKLE'}</h3>
             <button onclick="document.getElementById('accModal').remove()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
         </div>
         ${f}
-        <button onclick="saveAcc('${tip}')" style="width:100%; background:var(--A); padding:16px; border:none; border-radius:12px; font-weight:bold; cursor:pointer; margin-top:10px; color:#000;">KAYDET</button>
+        <button onclick="saveAcc('${tip}')" style="width:100%; background:var(--A); padding:16px; border:none; border-radius:12px; font-weight:bold; cursor:pointer; margin-top:10px; color:#000;">KAYDET VE GÜNCELLE</button>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 function toggleGoldOptions() {
     const isAltin = document.getElementById('vT').value === 'altin';
-    document.getElementById('goldOpt').style.display = isAltin ? 'block' : 'none';
+    const goldOpt = document.getElementById('goldOpt');
+    if(goldOpt) goldOpt.style.display = isAltin ? 'block' : 'none';
 }
 
 function saveAcc(tip) {
     if (tip === 'mevduat') {
         const ana = parseFloat(document.getElementById('yAna').value) || 0;
+        const muaf = parseFloat(document.getElementById('yMuaf').value) || 0;
         const oran = parseFloat(document.getElementById('yOr').value) || 0;
         const stopaj = parseFloat(document.getElementById('ySt').value) || 7.5;
         const basT = document.getElementById('yBasT').value;
         
-        S.portfoy.mevduat.push({ 
+        // Listeye eklemek yerine doğrudan objeyi güncelliyoruz
+        S.portfoy.mevduat = { 
             id: 'm'+Date.now(), 
             anaPara: ana,
+            muafiyet: muaf,
             oran: oran,
             stopaj: stopaj,
             basTarih: basT.split('-').reverse().join('.'),
             tarihRaw: basT
-        });
+        };
     } 
     else if (tip === 'borsa') {
+        if(!S.portfoy.borsa) S.portfoy.borsa = [];
         S.portfoy.borsa.push({ 
             id: 'b'+Date.now(), 
             ad: document.getElementById('bAd').value.toUpperCase(), 
@@ -1168,6 +1204,7 @@ function saveAcc(tip) {
             S.portfoy.varlik[tur] = (S.portfoy.varlik[tur] || 0) + miktar;
         }
         
+        if(!S.portfoy.varlik_gecmis) S.portfoy.varlik_gecmis = [];
         S.portfoy.varlik_gecmis.push({ 
             id: 'v'+Date.now(), 
             tur: tur, 
@@ -1180,9 +1217,8 @@ function saveAcc(tip) {
     if(typeof sv === 'function') sv();
     const modal = document.getElementById('accModal');
     if(modal) modal.remove();
-    rP6();
+    rP6(); // Ekranı yenile
 }
-
 function renderBorsaItems() {
     if (!S.portfoy.borsa || !S.portfoy.borsa.length) return `<div style="color:gray; font-size:11px; margin-top:10px;">İşlem yok.</div>`;
     const ozet = {};
