@@ -987,7 +987,7 @@ function rP6() {
     const target = document.getElementById('p6');
     if (!target) return;
 
-    if (!S.portfoy) S.portfoy = { mevduat: [], borsa: [], varlik: { altin: 0, usd: 0, eur: 0 }, varlik_gecmis: [] };
+    if (!S.portfoy) S.portfoy = { borsa: [], varlik: { altin: 0, usd: 0, eur: 0 }, varlik_gecmis: [] };    
     if (!S.portfoy.borsa) S.portfoy.borsa = [];
     if (!S.portfoy.varlik) S.portfoy.varlik = { altin: 0, usd: 0, eur: 0 };
     if (!S.portfoy.varlik_gecmis) S.portfoy.varlik_gecmis = [];
@@ -996,18 +996,16 @@ function rP6() {
     let gunFarki = 0;
 
     // --- TEK HAVUZ GÜNLÜK KATLAMALI HESAPLAMA (MUAFİYETLİ) ---
-    if (S.portfoy.mevduat) {
+if (S.portfoy.mevduat && typeof S.portfoy.mevduat === 'object' && S.portfoy.mevduat.anaPara !== undefined) {
         const m = S.portfoy.mevduat;
         const baslangic = new Date(m.tarihRaw);
         const bugun = new Date();
-        // Saat farkından etkilenmemek için gün farkı hesabı
         gunFarki = Math.floor((bugun - baslangic) / 86400000);
         
         const muafiyet = parseFloat(m.muafiyet) || 0;
         const netGunlukOran = (m.oran / 36500) * (1 - (m.stopaj / 100));
 
         if (gunFarki > 0) {
-            // Faiz sadece muafiyetten (Örn: 5000 TL) kalan tutara işletilir
             const faizlenecekTutar = m.anaPara - muafiyet;
             if (faizlenecekTutar > 0) {
                 mevduatGuncelBakiye = (faizlenecekTutar * Math.pow((1 + netGunlukOran), gunFarki)) + muafiyet;
@@ -1019,7 +1017,7 @@ function rP6() {
         }
     }
 
-    target.innerHTML = `
+   target.innerHTML = `
     <div style="padding: 20px; color: white; font-family: sans-serif; padding-bottom: 100px;">
         <h2 style="margin: 0 0 20px 0; font-size: 22px; font-weight: bold; color: var(--A);">Yatırım Portföyü</h2>
 
@@ -1028,10 +1026,10 @@ function rP6() {
                 <span style="color:#0dcaf0; font-weight:bold;">🏦 Mevduat Hesabı (Günlük)</span>
                 <button onclick="openAccModal('mevduat')" style="background:#0dcaf0; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">Bakiyeyi Güncelle</button>
             </div>
-            <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${mevduatGuncelBakiye.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
-            ${S.portfoy.mevduat ? `
+            <div style="font-size: 24px; font-weight: bold; margin-top:10px;">${(mevduatGuncelBakiye || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
+            ${S.portfoy.mevduat && S.portfoy.mevduat.anaPara ? `
                 <div style="font-size: 11px; color: gray; margin-top: 5px;">
-                    Net Ana Para: ${S.portfoy.mevduat.anaPara.toLocaleString('tr-TR')} TL | Boşta: ${S.portfoy.mevduat.muafiyet} TL
+                    Ana Para: ${S.portfoy.mevduat.anaPara.toLocaleString('tr-TR')} TL | Boşta: ${S.portfoy.mevduat.muafiyet} TL
                 </div>
                 <div style="font-size: 11px; color: #0dcaf0; margin-top: 2px;">
                     ${gunFarki} Gündür İşliyor (Brüt %${S.portfoy.mevduat.oran})
@@ -1040,29 +1038,8 @@ function rP6() {
         </div>
 
         <div style="background: rgba(255, 193, 7, 0.05); border: 1px solid #ffc107; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#ffc107; font-weight:bold;">📈 Borsa & Fon</span>
-                <button onclick="openAccModal('borsa')" style="background:#ffc107; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Hisse Al</button>
-            </div>
-            <div id="borsaListesi">${renderBorsaItems()}</div>
-        </div>
-
-        <div style="background: rgba(32, 201, 151, 0.05); border: 1px solid #20c997; border-radius: 15px; padding: 15px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#20c997; font-weight:bold;">💰 Döviz & Altın</span>
-                <button onclick="openAccModal('varlik')" style="background:#20c997; color:#000; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">+ Güncelle</button>
-            </div>
-            <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                <div onclick="showVarlikGecmis('altin')" style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; cursor:pointer;">
-                    <div style="font-size:10px; color:gray;">ALTIN</div><div style="font-weight:bold;">${Number(S.portfoy.varlik.altin || 0).toFixed(2)}g</div>
-                </div>
-                <div onclick="showVarlikGecmis('usd')" style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; cursor:pointer;">
-                    <div style="font-size:10px; color:gray;">DOLAR</div><div style="font-weight:bold;">$${S.portfoy.varlik.usd || 0}</div>
-                </div>
-                <div onclick="showVarlikGecmis('eur')" style="text-align:center; background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; cursor:pointer;">
-                    <div style="font-size:10px; color:gray;">EURO</div><div style="font-weight:bold;">€${S.portfoy.varlik.eur || 0}</div>
-                </div>
-            </div>
+             <span style="color:#ffc107; font-weight:bold;">📈 Borsa & Fon</span>
+             <div id="borsaListesi">${typeof renderBorsaItems === 'function' ? renderBorsaItems() : ''}</div>
         </div>
     </div>`;
 }
