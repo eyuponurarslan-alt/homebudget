@@ -1162,7 +1162,18 @@ function toggleGoldOptions() {
     const goldOpt = document.getElementById('goldOpt');
     if(goldOpt) goldOpt.style.display = isAltin ? 'block' : 'none';
 }
-
+function deleteBorsaItem(id) {
+    if (confirm('Bu alım işlemini silmek istediğinize emin misiniz?')) {
+        // İlgili ID'ye sahip olmayanları filtreleyerek silme işlemi yapıyoruz
+        S.portfoy.borsa = S.portfoy.borsa.filter(item => item.id !== id);
+        
+        // Değişiklikleri kaydet (varsa sv() fonksiyonun tetiklenir)
+        if (typeof sv === 'function') sv();
+        
+        // Ekranı güncelle
+        rP6();
+    }
+}
 function saveAcc(tip) {
     if (tip === 'mevduat') {
         const ana = parseFloat(document.getElementById('yAna').value) || 0;
@@ -1221,19 +1232,67 @@ function saveAcc(tip) {
     rP6(); // Ekranı yenile
 }
 function renderBorsaItems() {
-    if (!S.portfoy.borsa || !S.portfoy.borsa.length) return `<div style="color:gray; font-size:11px; margin-top:10px;">İşlem yok.</div>`;
-    const ozet = {};
-    S.portfoy.borsa.forEach(i => {
-        if (!ozet[i.ad]) ozet[i.ad] = { adet: 0, maliyet: 0 };
-        ozet[i.ad].adet += i.adet;
-        ozet[i.ad].maliyet += (i.adet * i.fiyat);
+    // S.portfoy.borsa dizisi var mı ve içi dolu mu kontrolü
+    if (!S.portfoy.borsa || S.portfoy.borsa.length === 0) {
+        return '<div style="color:gray; padding:15px; font-size:12px; text-align:center;">Henüz hisse veya fon eklenmedi.</div>';
+    }
+
+    // 1. TOPLAM YATIRIM BEDELİNİ HESAPLA (Yüzdelik payları bulmak için)
+    const toplamPortfoyMaliyeti = S.portfoy.borsa.reduce((toplam, islem) => toplam + (islem.adet * islem.fiyat), 0);
+
+    // 2. HİSSELERİ VE FONLARI GRUPLA (Aynı kodları birleştir)
+    const gruplanmisVarliklar = {};
+    
+    S.portfoy.borsa.forEach(islem => {
+        const kod = islem.ad.toUpperCase();
+        if (!gruplanmisVarliklar[kod]) {
+            gruplanmisVarliklar[kod] = { 
+                toplamLot: 0, 
+                toplamMaliyet: 0, 
+                islemler: [] 
+            };
+        }
+        gruplanmisVarliklar[kod].toplamLot += islem.adet;
+        gruplanmisVarliklar[kod].toplamMaliyet += (islem.adet * islem.fiyat);
+        gruplanmisVarliklar[kod].islemler.push(islem);
     });
-    return Object.keys(ozet).map(ad => {
-        const h = ozet[ad];
-        return `<div onclick="showBorsaDetail('${ad}')" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-top:10px; border:1px solid #333; cursor:pointer;">
-            <div style="display:flex; justify-content:space-between;"><b>${ad}</b><span>${h.adet} Adet</span></div>
-            <div style="display:flex; justify-content:space-between; font-size:11px; color:gray; margin-top:5px;">
-                <span>Ort: ${(h.maliyet / h.adet).toFixed(2)} TL</span><span>Detay ></span>
+
+    // 3. HTML ÇIKTISINI OLUŞTUR
+    return Object.keys(gruplanmisVarliklar).map(kod => {
+        const d = gruplanmisVarliklar[kod];
+        // Ağırlıklı Ortalama Maliyet Formülü: Toplam Para / Toplam Lot
+        const agirlikliOrtalama = d.toplamMaliyet / d.toplamLot;
+        // Bu varlığın tüm borsa fon toplamındaki yüzdelik payı
+        const yuzdelikPay = ((d.toplamMaliyet / toplamPortfoyMaliyeti) * 100).toFixed(1);
+
+        return `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid #333; border-radius: 12px; padding: 12px; margin-bottom: 10px;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                    <span style="font-weight:bold; color:var(--A); font-size:15px;">${kod}</span>
+                    <span style="font-size:10px; color:#888; margin-left:6px;">%${yuzdelikPay} PAY</span>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:14px; font-weight:bold; color:white;">${d.toplamMaliyet.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
+                    <div style="font-size:10px; color:gray;">Toplam Yatırım</div>
+                </div>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px; background:rgba(0,0,0,0.2); padding:8px; border-radius:8px; font-size:11px;">
+                <div><span style="color:gray;">Top. Lot:</span> <b style="color:white;">${d.toplamLot}</b></div>
+                <div><span style="color:gray;">Ağ. Ort. Maliyet:</span> <b style="color:white;">${agirlikliOrtalama.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</b></div>
+            </div>
+
+            <div style="margin-top:10px; border-top:1px solid #222; padding-top:6px;">
+                <div style="font-size:9px; color:gray; margin-bottom:4px; text-transform:uppercase;">Alım Geçmişi</div>
+                ${d.islemler.map(islem => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; margin-bottom:4px; padding:2px 0;">
+                        <span style="color:#aaa;">${islem.tarih}</span>
+                        <span style="color:#fff;">${islem.adet} Adet @ ${islem.fiyat.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</span>
+                        <span onclick="deleteBorsaItem('${islem.id}')" style="color:#ff4d4d; cursor:pointer; font-weight:bold; padding-left:10px;">[Sil]</span>
+                    </div>
+                `).join('')}
             </div>
         </div>`;
     }).join('');
