@@ -1174,6 +1174,35 @@ function deleteBorsaItem(id) {
         rP6();
     }
 }
+  // Mini tabda lot girildikçe toplamı hesaplar
+function calculateMini(kod, maliyet) {
+    const lot = parseFloat(document.getElementById(`miniLot_${kod}`).value) || 0;
+    const sonuc = lot * maliyet;
+    document.getElementById(`miniRes_${kod}`).innerText = sonuc.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' TL';
+}
+
+// Artı butonuna basınca veriyi listeye kaydeder
+function quickAdd(kod, maliyet) {
+    const lot = parseFloat(document.getElementById(`miniLot_${kod}`).value) || 0;
+    const tarih = document.getElementById(`miniTarih_${kod}`).value;
+
+    if (lot <= 0) {
+        alert("Lütfen geçerli bir adet giriniz.");
+        return;
+    }
+
+    // Yeni işlemi borsa listesine ekle
+    S.portfoy.borsa.push({
+        id: 'b' + Date.now(),
+        ad: kod,
+        adet: lot,
+        fiyat: maliyet, // Ağırlıklı ortalamayı baz alarak ekleme yapar
+        tarih: tarih.split('-').reverse().join('.')
+    });
+
+    if (typeof sv === 'function') sv();
+    rP6(); // Sayfayı yenile
+}
 function saveAcc(tip) {
     if (tip === 'mevduat') {
         const ana = parseFloat(document.getElementById('yAna').value) || 0;
@@ -1232,16 +1261,73 @@ function saveAcc(tip) {
     rP6(); // Ekranı yenile
 }
 function renderBorsaItems() {
-    // S.portfoy.borsa dizisi var mı ve içi dolu mu kontrolü
-    if (!S.portfoy.borsa || S.portfoy.borsa.length === 0) {
-        return '<div style="color:gray; padding:15px; font-size:12px; text-align:center;">Henüz hisse veya fon eklenmedi.</div>';
-    }
+    if (!S.portfoy.borsa || S.portfoy.borsa.length === 0) return '<div style="color:gray; padding:15px; text-align:center;">Henüz varlık eklenmedi.</div>';
 
-    // 1. TOPLAM YATIRIM BEDELİNİ HESAPLA (Yüzdelik payları bulmak için)
     const toplamPortfoyMaliyeti = S.portfoy.borsa.reduce((toplam, islem) => toplam + (islem.adet * islem.fiyat), 0);
-
-    // 2. HİSSELERİ VE FONLARI GRUPLA (Aynı kodları birleştir)
     const gruplanmisVarliklar = {};
+    
+    S.portfoy.borsa.forEach(islem => {
+        const kod = islem.ad.toUpperCase();
+        if (!gruplanmisVarliklar[kod]) gruplanmisVarliklar[kod] = { toplamLot: 0, toplamMaliyet: 0, islemler: [] };
+        gruplanmisVarliklar[kod].toplamLot += islem.adet;
+        gruplanmisVarliklar[kod].toplamMaliyet += (islem.adet * islem.fiyat);
+        gruplanmisVarliklar[kod].islemler.push(islem);
+    });
+
+    return Object.keys(gruplanmisVarliklar).map(kod => {
+        const d = gruplanmisVarliklar[kod];
+        const agirlikliOrtalama = d.toplamMaliyet / d.toplamLot;
+        const yuzdelikPay = ((d.toplamMaliyet / toplamPortfoyMaliyeti) * 100).toFixed(1);
+
+        return `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid #333; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
+                <div>
+                    <span style="font-weight:bold; color:var(--A); font-size:16px;">${kod}</span>
+                    <span style="font-size:10px; color:#888; margin-left:6px;">%${yuzdelikPay} PAY</span>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:15px; font-weight:bold; color:white;">${d.toplamMaliyet.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
+                    <div style="font-size:9px; color:gray; text-transform:uppercase;">Toplam Yatırım</div>
+                </div>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px; font-size:11px;">
+                <div><span style="color:gray;">Top. Lot:</span> <b style="color:white;">${d.toplamLot}</b></div>
+                <div><span style="color:gray;">Maliyet:</span> <b style="color:white;">${agirlikliOrtalama.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</b></div>
+            </div>
+
+            <div style="background: rgba(0, 255, 127, 0.05); border: 1px dashed rgba(0, 255, 127, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="date" id="miniTarih_${kod}" value="${new Date().toISOString().split('T')[0]}" 
+                           style="flex: 1.5; background:#111; border:1px solid #444; color:white; font-size:11px; padding:6px; border-radius:4px;">
+                    
+                    <input type="number" id="miniLot_${kod}" placeholder="Adet" oninput="calculateMini('${kod}', ${agirlikliOrtalama})"
+                           style="flex: 1; background:#111; border:1px solid #444; color:white; font-size:11px; padding:6px; border-radius:4px;">
+                    
+                    <div id="miniRes_${kod}" style="flex: 2; text-align: right; font-weight: 800; color: #00ff7f; font-size: 14px;">
+                        0,00 TL
+                    </div>
+
+                    <button onclick="quickAdd('${kod}', ${agirlikliOrtalama})" 
+                            style="background:#00ff7f; color:#000; border:none; border-radius:4px; padding:6px 10px; cursor:pointer; font-weight:bold; font-size:11px;">+</button>
+                </div>
+                <div style="font-size:9px; color:rgba(0,255,127,0.5); margin-top:4px;">* Maliyet üzerinden hızlı lot eklemesi yapar.</div>
+            </div>
+
+            <div style="border-top:1px solid #222; padding-top:8px;">
+                ${d.islemler.reverse().map(islem => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; margin-bottom:5px;">
+                        <span style="color:#777;">${islem.tarih}</span>
+                        <span style="color:#eee;">${islem.adet} Adet @ ${islem.fiyat.toLocaleString('tr-TR')} TL</span>
+                        <span onclick="deleteBorsaItem('${islem.id}')" style="color:#ff4d4d; cursor:pointer; font-weight:bold;">[Sil]</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
     
     S.portfoy.borsa.forEach(islem => {
         const kod = islem.ad.toUpperCase();
