@@ -1247,13 +1247,6 @@ function saveAcc(tip) {
     if(modal) modal.remove();
     rP6(); // Ekranı yenile
 }
-Kesinlikle, şu an kullandığın renderBorsaItems fonksiyonunun tamamını silip yerine aşağıdakini yapıştırmalısın.
-
-Senin paylaştığın mevcut kodda yeşil alan yeni bir alım eklemek için kurgulanmış. Ancak senin son talebin doğrultusunda bu alanı, elindeki mevcut lot sayısını otomatik getiren ve senin gireceğin güncel fiyatla anlık değer hesabı yapan bir "simülatöre" dönüştürdüm.
-
-1. Yeni renderBorsaItems Fonksiyonu
-Bu kod, mevcut fonksiyonun yerini alacak ve yeşil kutuyu tam istediğin mantığa (Lot otomatik, Fiyat manuel) çekecektir:
-
 JavaScript
 function renderBorsaItems() {
     // 1. Veri kontrolü
