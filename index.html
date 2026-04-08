@@ -1174,19 +1174,21 @@ function deleteBorsaItem(id) {
         rP6();
     }
 }
+// Mini tabda lot ve fiyat girildikçe anlık değeri hesaplar
 function simulasyonYap(kod) {
-    // 1. input alanlarından güncel lot ve senin girdiğin fiyatı alıyoruz
-    const lot = parseFloat(document.getElementById(`simLot_${kod}`).value) || 0;
-    const fiyat = parseFloat(document.getElementById(`simFiyat_${kod}`).value) || 0;
+    const lotInput = document.getElementById(`simLot_${kod}`);
+    const fiyatInput = document.getElementById(`simFiyat_${kod}`);
     const sonucElem = document.getElementById(`simSonuc_${kod}`);
+
+    if (!lotInput || !fiyatInput || !sonucElem) return;
+
+    const lot = parseFloat(lotInput.value) || 0;
+    const fiyat = parseFloat(fiyatInput.value) || 0;
     
-    // 2. Senin istediğin çarpma formülü (Lot x Güncel Değer)
+    // Formül: Mevcut Lot x Senin Girdiğin Güncel Fiyat
     const toplamDeger = lot * fiyat;
     
-    // 3. Sonucu kalın ve yeşil olan sağdaki alana yazdırıyoruz
-    if (sonucElem) {
-        sonucElem.innerText = toplamDeger.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' TL';
-    }
+    sonucElem.innerText = toplamDeger.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' TL';
 }
 function saveAcc(tip) {
     if (tip === 'mevduat') {
