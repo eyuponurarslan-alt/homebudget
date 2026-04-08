@@ -1174,34 +1174,19 @@ function deleteBorsaItem(id) {
         rP6();
     }
 }
-  // Mini tabda lot girildikçe toplamı hesaplar
-function calculateMini(kod, maliyet) {
-    const lot = parseFloat(document.getElementById(`miniLot_${kod}`).value) || 0;
-    const sonuc = lot * maliyet;
-    document.getElementById(`miniRes_${kod}`).innerText = sonuc.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' TL';
-}
-
-// Artı butonuna basınca veriyi listeye kaydeder
-function quickAdd(kod, maliyet) {
-    const lot = parseFloat(document.getElementById(`miniLot_${kod}`).value) || 0;
-    const tarih = document.getElementById(`miniTarih_${kod}`).value;
-
-    if (lot <= 0) {
-        alert("Lütfen geçerli bir adet giriniz.");
-        return;
+function simulasyonYap(kod) {
+    // 1. input alanlarından güncel lot ve senin girdiğin fiyatı alıyoruz
+    const lot = parseFloat(document.getElementById(`simLot_${kod}`).value) || 0;
+    const fiyat = parseFloat(document.getElementById(`simFiyat_${kod}`).value) || 0;
+    const sonucElem = document.getElementById(`simSonuc_${kod}`);
+    
+    // 2. Senin istediğin çarpma formülü (Lot x Güncel Değer)
+    const toplamDeger = lot * fiyat;
+    
+    // 3. Sonucu kalın ve yeşil olan sağdaki alana yazdırıyoruz
+    if (sonucElem) {
+        sonucElem.innerText = toplamDeger.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' TL';
     }
-
-    // Yeni işlemi borsa listesine ekle
-    S.portfoy.borsa.push({
-        id: 'b' + Date.now(),
-        ad: kod,
-        adet: lot,
-        fiyat: maliyet, // Ağırlıklı ortalamayı baz alarak ekleme yapar
-        tarih: tarih.split('-').reverse().join('.')
-    });
-
-    if (typeof sv === 'function') sv();
-    rP6(); // Sayfayı yenile
 }
 function saveAcc(tip) {
     if (tip === 'mevduat') {
@@ -1260,6 +1245,14 @@ function saveAcc(tip) {
     if(modal) modal.remove();
     rP6(); // Ekranı yenile
 }
+Kesinlikle, şu an kullandığın renderBorsaItems fonksiyonunun tamamını silip yerine aşağıdakini yapıştırmalısın.
+
+Senin paylaştığın mevcut kodda yeşil alan yeni bir alım eklemek için kurgulanmış. Ancak senin son talebin doğrultusunda bu alanı, elindeki mevcut lot sayısını otomatik getiren ve senin gireceğin güncel fiyatla anlık değer hesabı yapan bir "simülatöre" dönüştürdüm.
+
+1. Yeni renderBorsaItems Fonksiyonu
+Bu kod, mevcut fonksiyonun yerini alacak ve yeşil kutuyu tam istediğin mantığa (Lot otomatik, Fiyat manuel) çekecektir:
+
+JavaScript
 function renderBorsaItems() {
     // 1. Veri kontrolü
     if (!S.portfoy || !S.portfoy.borsa || S.portfoy.borsa.length === 0) {
@@ -1296,29 +1289,27 @@ function renderBorsaItems() {
                 </div>
                 <div style="text-align:right;">
                     <div style="font-size:15px; font-weight:bold; color:white;">${d.toplamMaliyet.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</div>
-                    <div style="font-size:9px; color:gray; text-transform:uppercase;">Toplam Yatırım</div>
+                    <div style="font-size:9px; color:gray; text-transform:uppercase;">Toplam Maliyet</div>
                 </div>
             </div>
             
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px; font-size:11px;">
-                <div><span style="color:gray;">Top. Lot:</span> <b style="color:white;">${d.toplamLot}</b></div>
-                <div><span style="color:gray;">Maliyet:</span> <b style="color:white;">${agirlikliOrtalama.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</b></div>
+                <div><span style="color:gray;">Mevcut Lot:</span> <b style="color:white;">${d.toplamLot}</b></div>
+                <div><span style="color:gray;">Ort. Maliyet:</span> <b style="color:white;">${agirlikliOrtalama.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</b></div>
             </div>
 
-            <div style="background: rgba(0, 255, 127, 0.05); border: 1px dashed rgba(0, 255, 127, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+            <div style="background: rgba(0, 255, 127, 0.05); border: 1px solid rgba(0, 255, 127, 0.2); border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                <div style="font-size:9px; color:#00ff7f; margin-bottom:6px; font-weight:bold; text-transform:uppercase;">Anlık Değer Hesaplayıcı</div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="date" id="miniTarih_${kod}" value="${new Date().toISOString().split('T')[0]}" 
-                           style="flex: 1.5; background:#111; border:1px solid #444; color:white; font-size:11px; padding:6px; border-radius:4px;">
+                    <input type="number" id="simLot_${kod}" value="${d.toplamLot}" oninput="simulasyonYap('${kod}')"
+                           style="flex: 1; background:#000; border:1px solid #333; color:#aaa; font-size:11px; padding:6px; border-radius:4px;" title="Lot Sayısı">
                     
-                    <input type="number" id="miniLot_${kod}" placeholder="Adet" oninput="calculateMini('${kod}', ${agirlikliOrtalama})"
-                           style="flex: 1; background:#111; border:1px solid #444; color:white; font-size:11px; padding:6px; border-radius:4px;">
+                    <input type="number" id="simFiyat_${kod}" placeholder="Güncel Fiyat Gir" oninput="simulasyonYap('${kod}')"
+                           style="flex: 1.5; background:#111; border:1px solid #00ff7f; color:white; font-size:11px; padding:6px; border-radius:4px;">
                     
-                    <div id="miniRes_${kod}" style="flex: 2; text-align: right; font-weight: 800; color: #00ff7f; font-size: 14px;">
+                    <div id="simSonuc_${kod}" style="flex: 2; text-align: right; font-weight: 800; color: #00ff7f; font-size: 14px;">
                         0,00 TL
                     </div>
-
-                    <button onclick="quickAdd('${kod}', ${agirlikliOrtalama})" 
-                            style="background:#00ff7f; color:#000; border:none; border-radius:4px; padding:6px 10px; cursor:pointer; font-weight:bold; font-size:11px;">+</button>
                 </div>
             </div>
 
@@ -1327,7 +1318,7 @@ function renderBorsaItems() {
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; margin-bottom:5px;">
                         <span style="color:#777;">${islem.tarih}</span>
                         <span style="color:#eee;">${islem.adet} Adet @ ${islem.fiyat.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</span>
-                        <span onclick="deleteBorsaItem('${islem.id}')" style="color:#ff4d4d; cursor:pointer; font-weight:bold;">[Sil]</span>
+                        <span onclick="deleteBorsaItem('${islem.id}')" style="color:#ff4d4d; cursor:pointer; font-weight:bold; padding-left:10px;">[Sil]</span>
                     </div>
                 `).join('')}
             </div>
